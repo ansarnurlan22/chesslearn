@@ -41,7 +41,7 @@ async function DashboardContent({ searchParams }: PageProps) {
   );
 }
 
-export default function HomePage({ searchParams }: PageProps) {
+export default function Home({ searchParams }: PageProps) {
   return (
     <div className="relative min-h-screen bg-zinc-950 text-white font-sans antialiased overflow-x-hidden selection:bg-emerald-500/30 selection:text-emerald-200">
       {/* Background Glow effects */}
