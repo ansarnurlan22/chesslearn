@@ -36,7 +36,7 @@ export function EvalBar({
 
   return (
     <div
-      className="relative w-5 sm:w-6 self-stretch my-0.5 rounded-xl overflow-hidden border border-zinc-700/80 bg-zinc-950 flex flex-col justify-end shadow-xl select-none shrink-0"
+      className="relative w-5 sm:w-6 self-stretch my-0.5 rounded-xl overflow-hidden border border-[#363431] bg-[#161512] flex flex-col justify-end shadow-sm select-none shrink-0"
       title={`Оценка позиции: ${text} ${currentEval.isEngine ? '(Stockfish PGN)' : '(Позиционный анализ)'}`}
     >
       {/* Top section (Black if white orientation) */}

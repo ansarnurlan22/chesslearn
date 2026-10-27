@@ -4,6 +4,7 @@ import {
   CLASSIFICATION_META,
   classifyGameMoves,
 } from '@/lib/chess-classifier';
+import type { ChessPlatform } from '@/lib/api/types';
 import type {
   CriticalMove,
   CriticalMoveType,
@@ -33,6 +34,7 @@ interface GameReviewProps {
   onRetryMove: (ply: number, betterMove: string) => void;
   onReviewLoaded?: (data: GameReviewData) => void;
   activePly?: number;
+  platform?: ChessPlatform;
 }
 
 const TYPE_CONFIG: Record<
@@ -167,7 +169,9 @@ export function GameReview({
   onRetryMove,
   onReviewLoaded,
   activePly,
+  platform = 'lichess',
 }: GameReviewProps) {
+  const isChessCom = platform === 'chesscom';
   const [review, setReview] = useState<GameReviewData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -222,17 +226,17 @@ export function GameReview({
   }, [review, pgn]);
 
   return (
-    <div className="w-full bg-zinc-900/60 backdrop-blur-xl border border-zinc-800 rounded-3xl p-5 sm:p-6 shadow-2xl flex flex-col gap-6">
+    <div className={`w-full ${isChessCom ? 'bg-[#211f1c] border-[#302e2b]' : 'bg-[#24221f] border-[#33312c]'} border rounded-3xl p-5 sm:p-6 shadow-sm flex flex-col gap-6`}>
       {/* Top Header */}
-      <div className="flex items-center justify-between gap-4 flex-wrap pb-4 border-b border-zinc-800/80">
+      <div className={`flex items-center justify-between gap-4 flex-wrap pb-4 border-b ${isChessCom ? 'border-[#302e2b]' : 'border-[#33312c]'}`}>
         <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-zinc-950 font-bold shadow-md shadow-cyan-500/20">
-            <Sparkles className="w-5 h-5 text-zinc-950" />
+          <div className={`w-9 h-9 rounded-xl ${isChessCom ? 'bg-[#81b64c]' : 'bg-[#3692e7]'} flex items-center justify-center text-white font-bold shadow-sm`}>
+            <Sparkles className="w-5 h-5 text-white" />
           </div>
           <div>
             <h3 className="font-bold text-base text-white flex items-center gap-2">
               <span>Разбор партии</span>
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 font-mono">
+              <span className={`text-[10px] px-2 py-0.5 rounded-full ${isChessCom ? 'bg-[#81b64c]/15 border-[#81b64c]/30 text-[#81b64c]' : 'bg-[#3692e7]/15 border-[#3692e7]/30 text-[#3692e7]'} border font-mono`}>
                 AI
               </span>
             </h3>
@@ -245,16 +249,16 @@ export function GameReview({
             type="button"
             onClick={startAnalysis}
             disabled={isLoading}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-zinc-950 font-bold text-xs sm:text-sm shadow-lg shadow-cyan-500/20 transition-all active:scale-95 disabled:opacity-50 cursor-pointer touch-manipulation"
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl ${isChessCom ? 'bg-[#81b64c] hover:bg-[#74a643]' : 'bg-[#3692e7] hover:bg-[#2b7ecc]'} text-white font-bold text-xs sm:text-sm transition-all active:scale-95 disabled:opacity-50 cursor-pointer touch-manipulation`}
           >
             {isLoading ? (
               <>
-                <Loader2 className="w-4 h-4 animate-spin text-zinc-950" />
+                <Loader2 className="w-4 h-4 animate-spin text-white" />
                 <span>Анализирую партию...</span>
               </>
             ) : (
               <>
-                <Sparkles className="w-4 h-4 text-zinc-950" />
+                <Sparkles className="w-4 h-4 text-white" />
                 <span>Запустить AI-разбор партии</span>
               </>
             )}
@@ -266,7 +270,7 @@ export function GameReview({
             type="button"
             onClick={startAnalysis}
             disabled={isLoading}
-            className="text-xs px-3 py-1.5 rounded-lg bg-zinc-800/80 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-700/60 transition-all flex items-center gap-1.5 cursor-pointer touch-manipulation"
+            className={`text-xs px-3 py-1.5 rounded-lg ${isChessCom ? 'bg-[#191815] hover:bg-[#262421] text-[#c3c2c1] hover:text-white border-[#302e2b]' : 'bg-[#1c1a17] hover:bg-[#292723] text-[#bababa] hover:text-white border-[#33312c]'} border transition-all flex items-center gap-1.5 cursor-pointer touch-manipulation`}
           >
             <RotateCcw className="w-3.5 h-3.5" />
             <span>Пересчитать</span>
@@ -283,13 +287,13 @@ export function GameReview({
 
       {/* Before analysis prompt */}
       {!review && !isLoading && !error && (
-        <div className="py-8 text-center text-zinc-400 flex flex-col items-center gap-2">
-          <div className="w-12 h-12 rounded-2xl bg-zinc-800/60 border border-zinc-700/60 flex items-center justify-center text-cyan-400">
+        <div className={`py-8 text-center ${isChessCom ? 'text-[#8b8987]' : 'text-[#7e7b76]'} flex flex-col items-center gap-2`}>
+          <div className={`w-12 h-12 rounded-2xl ${isChessCom ? 'bg-[#191815] border-[#302e2b] text-[#81b64c]' : 'bg-[#1c1a17] border-[#33312c] text-[#3692e7]'} border flex items-center justify-center`}>
             <Lightbulb className="w-6 h-6" />
           </div>
           <p className="text-sm font-medium text-zinc-300">Партия готова к AI-анализу</p>
-          <p className="text-xs text-zinc-500 max-w-sm">
-            Нажми «Запустить AI-разбор партии», чтобы нейросеть оценила точность, выявила блестящие ходы, ошибки и составила сводную таблицу.
+          <p className={`text-xs ${isChessCom ? 'text-[#8b8987]' : 'text-[#7e7b76]'} max-w-sm`}>
+            Нажми «Запустить AI-разбор партии», чтобы нейросеть оценила точность, выявила ключевые ходы и составила сводную таблицу.
           </p>
         </div>
       )}
@@ -298,12 +302,12 @@ export function GameReview({
       {isLoading && (
         <div className="py-12 flex flex-col items-center justify-center gap-4 text-zinc-400">
           <div className="relative">
-            <div className="w-12 h-12 rounded-full border-2 border-cyan-500/20 border-t-cyan-400 animate-spin" />
-            <Sparkles className="w-5 h-5 text-cyan-400 absolute inset-0 m-auto" />
+            <div className={`w-12 h-12 rounded-full border-2 ${isChessCom ? 'border-[#81b64c]/20 border-t-[#81b64c]' : 'border-[#3692e7]/20 border-t-[#3692e7]'} animate-spin`} />
+            <Sparkles className={`w-5 h-5 ${isChessCom ? 'text-[#81b64c]' : 'text-[#3692e7]'} absolute inset-0 m-auto`} />
           </div>
           <div className="text-center">
             <p className="text-sm font-semibold text-white">Нейросеть анализирует партию...</p>
-            <p className="text-xs text-zinc-500 mt-1">Оценка точности, поиск зевков и классификация всех ходов</p>
+            <p className={`text-xs ${isChessCom ? 'text-[#8b8987]' : 'text-[#7e7b76]'} mt-1`}>Оценка точности, поиск зевков и классификация всех ходов</p>
           </div>
         </div>
       )}
@@ -314,7 +318,7 @@ export function GameReview({
           {/* Accuracy Gauge Dashboard */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* White Accuracy */}
-            <div className="bg-zinc-950/60 border border-zinc-800 p-4 rounded-2xl flex flex-col justify-between">
+            <div className={`${isChessCom ? 'bg-[#191815] border-[#302e2b]' : 'bg-[#1c1a17] border-[#33312c]'} border p-4 rounded-2xl flex flex-col justify-between`}>
               <div className="flex items-center justify-between text-xs text-zinc-400 font-medium mb-1">
                 <span className="flex items-center gap-1.5 text-zinc-200">
                   <span className="w-2.5 h-2.5 rounded-full bg-white border border-zinc-300" />
@@ -327,16 +331,16 @@ export function GameReview({
               <div className="text-2xl sm:text-3xl font-black text-white tracking-tight my-1">
                 {review.accuracy.white.toFixed(1)}%
               </div>
-              <div className="w-full bg-zinc-800 h-2 rounded-full overflow-hidden">
+              <div className="w-full bg-black/40 h-2 rounded-full overflow-hidden">
                 <div
-                  className="bg-gradient-to-r from-emerald-500 to-cyan-400 h-full rounded-full transition-all duration-700"
+                  className={`${isChessCom ? 'bg-[#81b64c]' : 'bg-[#3692e7]'} h-full rounded-full transition-all duration-700`}
                   style={{ width: `${Math.min(100, review.accuracy.white)}%` }}
                 />
               </div>
             </div>
 
             {/* Black Accuracy */}
-            <div className="bg-zinc-950/60 border border-zinc-800 p-4 rounded-2xl flex flex-col justify-between">
+            <div className={`${isChessCom ? 'bg-[#191815] border-[#302e2b]' : 'bg-[#1c1a17] border-[#33312c]'} border p-4 rounded-2xl flex flex-col justify-between`}>
               <div className="flex items-center justify-between text-xs text-zinc-400 font-medium mb-1">
                 <span className="flex items-center gap-1.5 text-zinc-200">
                   <span className="w-2.5 h-2.5 rounded-full bg-zinc-600 border border-zinc-500" />
@@ -349,9 +353,9 @@ export function GameReview({
               <div className="text-2xl sm:text-3xl font-black text-white tracking-tight my-1">
                 {review.accuracy.black.toFixed(1)}%
               </div>
-              <div className="w-full bg-zinc-800 h-2 rounded-full overflow-hidden">
+              <div className="w-full bg-black/40 h-2 rounded-full overflow-hidden">
                 <div
-                  className="bg-gradient-to-r from-emerald-500 to-teal-400 h-full rounded-full transition-all duration-700"
+                  className={`${isChessCom ? 'bg-[#81b64c]' : 'bg-[#3692e7]'} h-full rounded-full transition-all duration-700`}
                   style={{ width: `${Math.min(100, review.accuracy.black)}%` }}
                 />
               </div>
@@ -359,14 +363,14 @@ export function GameReview({
           </div>
 
           {/* Full Move Breakdown Table (Chess.com Style) */}
-          <div className="w-full bg-zinc-950/70 border border-zinc-800/90 rounded-2xl p-4 flex flex-col gap-3 shadow-inner">
-            <div className="flex items-center justify-between px-1 text-xs border-b border-zinc-800/80 pb-2.5">
+          <div className={`w-full ${isChessCom ? 'bg-[#191815] border-[#302e2b]' : 'bg-[#1c1a17] border-[#33312c]'} border rounded-2xl p-4 flex flex-col gap-3`}>
+            <div className={`flex items-center justify-between px-1 text-xs border-b ${isChessCom ? 'border-[#302e2b]' : 'border-[#33312c]'} pb-2.5`}>
               <div className="flex items-center gap-2">
                 <span className="w-3 h-3 rounded-full bg-white border border-zinc-300 shadow-sm" />
                 <span className="font-bold text-zinc-200">Белые</span>
               </div>
-              <span className="font-bold uppercase tracking-wider text-[11px] text-zinc-400">
-                Сводная таблица ходов (Chess.com)
+              <span className={`font-bold uppercase tracking-wider text-[11px] ${isChessCom ? 'text-[#8b8987]' : 'text-[#7e7b76]'}`}>
+                Сводная таблица ходов
               </span>
               <div className="flex items-center gap-2">
                 <span className="font-bold text-zinc-200">Чёрные</span>
@@ -382,13 +386,13 @@ export function GameReview({
                 return (
                   <div
                     key={cat.type}
-                    className="grid grid-cols-12 items-center py-1.5 px-2 rounded-xl hover:bg-zinc-900/60 transition-colors"
+                    className={`grid grid-cols-12 items-center py-1.5 px-2 rounded-xl ${isChessCom ? 'hover:bg-[#262421]' : 'hover:bg-[#292723]'} transition-colors`}
                   >
                     {/* White Count */}
                     <div className="col-span-3 flex items-center justify-start gap-1.5 font-mono font-bold text-zinc-100">
                       <span
                         className={`min-w-[28px] text-center px-2 py-0.5 rounded-md ${
-                          whiteVal > 0 ? `${cat.bg} ${cat.text}` : 'bg-zinc-900/80 text-zinc-600'
+                          whiteVal > 0 ? `${cat.bg} ${cat.text}` : isChessCom ? 'bg-[#262421] text-[#8b8987]' : 'bg-[#292723] text-[#7e7b76]'
                         }`}
                       >
                         {whiteVal}
@@ -410,7 +414,7 @@ export function GameReview({
                     <div className="col-span-3 flex items-center justify-end gap-1.5 font-mono font-bold text-zinc-100">
                       <span
                         className={`min-w-[28px] text-center px-2 py-0.5 rounded-md ${
-                          blackVal > 0 ? `${cat.bg} ${cat.text}` : 'bg-zinc-900/80 text-zinc-600'
+                          blackVal > 0 ? `${cat.bg} ${cat.text}` : isChessCom ? 'bg-[#262421] text-[#8b8987]' : 'bg-[#292723] text-[#7e7b76]'
                         }`}
                       >
                         {blackVal}
@@ -423,22 +427,22 @@ export function GameReview({
           </div>
 
           {/* Coach's Summary and Takeaway */}
-          <div className="p-4 rounded-2xl bg-gradient-to-br from-zinc-950 to-zinc-900 border border-zinc-800 flex flex-col gap-3">
+          <div className={`p-4 rounded-2xl ${isChessCom ? 'bg-[#191815] border-[#302e2b]' : 'bg-[#1c1a17] border-[#33312c]'} border flex flex-col gap-3`}>
             <div className="flex items-start gap-3">
-              <div className="w-8 h-8 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 shrink-0 mt-0.5">
+              <div className={`w-8 h-8 rounded-xl ${isChessCom ? 'bg-[#81b64c]/20 border-[#81b64c]/40 text-[#81b64c]' : 'bg-[#3692e7]/20 border-[#3692e7]/40 text-[#3692e7]'} border flex items-center justify-center shrink-0 mt-0.5`}>
                 <Lightbulb className="w-4 h-4" />
               </div>
               <div className="flex-1">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-400">
+                <h4 className={`text-xs font-bold uppercase tracking-wider ${isChessCom ? 'text-[#81b64c]' : 'text-[#3692e7]'}`}>
                   Совет тренера
                 </h4>
-                <p className="text-xs sm:text-sm text-zinc-200 mt-1 leading-relaxed font-medium">
+                <p className={`text-xs sm:text-sm ${isChessCom ? 'text-[#c3c2c1]' : 'text-[#bababa]'} mt-1 leading-relaxed font-medium`}>
                   {review.keyTakeaway}
                 </p>
               </div>
             </div>
             {review.summary && (
-              <p className="text-xs text-zinc-400 pl-11 leading-relaxed border-t border-zinc-800/60 pt-2.5">
+              <p className={`text-xs ${isChessCom ? 'text-[#8b8987]' : 'text-[#7e7b76]'} pl-11 leading-relaxed border-t ${isChessCom ? 'border-[#302e2b]' : 'border-[#33312c]'} pt-2.5`}>
                 {review.summary}
               </p>
             )}
@@ -449,7 +453,7 @@ export function GameReview({
             <div className="flex items-center justify-between px-1">
               <h4 className="text-sm font-bold text-white flex items-center gap-2">
                 <span>Ключевые моменты партии</span>
-                <span className="text-xs text-zinc-500 font-normal">
+                <span className={`text-xs ${isChessCom ? 'text-[#8b8987]' : 'text-[#7e7b76]'} font-normal`}>
                   (кликни для перехода на доске)
                 </span>
               </h4>
@@ -466,8 +470,12 @@ export function GameReview({
                     key={`${item.ply}-${idx}`}
                     className={`p-4 rounded-2xl border transition-all flex flex-col gap-3 ${
                       isActive
-                        ? 'bg-zinc-800/90 border-cyan-500/80 shadow-lg shadow-cyan-950/30 ring-1 ring-cyan-500/50'
-                        : 'bg-zinc-950/60 border-zinc-800 hover:border-zinc-700 hover:bg-zinc-900/80'
+                        ? isChessCom
+                          ? 'bg-[#262421] border-[#81b64c] ring-1 ring-[#81b64c]'
+                          : 'bg-[#292723] border-[#3692e7] ring-1 ring-[#3692e7]'
+                        : isChessCom
+                          ? 'bg-[#191815] border-[#302e2b] hover:bg-[#262421]'
+                          : 'bg-[#1c1a17] border-[#33312c] hover:bg-[#292723]'
                     }`}
                   >
                     {/* Top Row: Move badge, type, and jump button */}
@@ -476,7 +484,7 @@ export function GameReview({
                         onClick={() => onSelectMovePly(item.ply)}
                         className="flex items-center gap-2 cursor-pointer"
                       >
-                        <span className="text-xs px-2 py-0.5 rounded bg-zinc-800 text-zinc-300 font-mono border border-zinc-700/60">
+                        <span className={`text-xs px-2 py-0.5 rounded ${isChessCom ? 'bg-[#262421] text-[#c3c2c1] border-[#302e2b]' : 'bg-[#292723] text-[#bababa] border-[#33312c]'} font-mono border`}>
                           Ход {item.moveNumber} ({item.color === 'white' ? 'Белые' : 'Чёрные'})
                         </span>
                         <span className="text-sm font-bold text-white font-mono">
@@ -500,8 +508,12 @@ export function GameReview({
                           }}
                           className={`text-xs px-2.5 py-1 rounded-lg border transition-all flex items-center gap-1.5 font-medium cursor-pointer touch-manipulation ${
                             isRetrying
-                              ? 'bg-emerald-500 text-zinc-950 border-emerald-400 font-bold'
-                              : 'bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 hover:text-white border-zinc-700/60'
+                              ? isChessCom
+                                ? 'bg-[#81b64c] text-white border-[#81b64c]'
+                                : 'bg-[#3692e7] text-white border-[#3692e7]'
+                              : isChessCom
+                                ? 'bg-[#262421] hover:bg-[#302e2b] text-[#c3c2c1] hover:text-white border-[#302e2b]'
+                                : 'bg-[#292723] hover:bg-[#33312c] text-[#bababa] hover:text-white border-[#33312c]'
                           }`}
                         >
                           <RotateCcw className="w-3 h-3" />
@@ -513,27 +525,27 @@ export function GameReview({
                     {/* Comment from AI */}
                     <p
                       onClick={() => onSelectMovePly(item.ply)}
-                      className="text-xs text-zinc-300 leading-relaxed cursor-pointer"
+                      className={`text-xs ${isChessCom ? 'text-[#c3c2c1]' : 'text-[#bababa]'} leading-relaxed cursor-pointer`}
                     >
                       {item.comment}
                     </p>
 
                     {/* Recommendation Row */}
                     {item.betterMove && item.type !== 'brilliant' && item.type !== 'best' && (
-                      <div className="flex items-center justify-between pt-2 border-t border-zinc-800/60 text-xs">
-                        <span className="text-zinc-400">
+                      <div className={`flex items-center justify-between pt-2 border-t ${isChessCom ? 'border-[#302e2b]' : 'border-[#33312c]'} text-xs`}>
+                        <span className={isChessCom ? 'text-[#8b8987]' : 'text-[#7e7b76]'}>
                           Лучше было сыграть:{' '}
-                          <strong className="text-emerald-400 font-mono text-sm ml-1">
+                          <strong className={`${isChessCom ? 'text-[#81b64c]' : 'text-[#3692e7]'} font-mono text-sm ml-1`}>
                             {item.betterMove}
                           </strong>
                         </span>
                         <button
                           type="button"
                           onClick={() => onSelectMovePly(item.ply)}
-                          className="text-cyan-400 hover:text-cyan-300 flex items-center gap-1 text-[11px] cursor-pointer touch-manipulation"
+                          className={`${isChessCom ? 'text-[#81b64c] hover:underline' : 'text-[#3692e7] hover:underline'} flex items-center gap-1 text-[11px] cursor-pointer touch-manipulation`}
                         >
                           <span>Смотреть позицию</span>
-                          <span className="text-cyan-400">→</span>
+                          <span>→</span>
                         </button>
                       </div>
                     )}

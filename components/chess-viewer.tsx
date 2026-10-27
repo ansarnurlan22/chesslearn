@@ -2,6 +2,7 @@
 
 import { EvalBar } from '@/components/eval-bar';
 import { useChessGame } from '@/hooks/use-chess-game';
+import type { ChessPlatform } from '@/lib/api/types';
 import {
   CLASSIFICATION_META,
   classifyGameMoves,
@@ -34,6 +35,12 @@ import {
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Chessboard } from 'react-chessboard';
 
+export interface BoardArrow {
+  startSquare: string;
+  endSquare: string;
+  color: string;
+}
+
 export interface RetryMoveInfo {
   moveNumber: number;
   ply: number;
@@ -56,6 +63,7 @@ export interface ChessViewerProps {
   criticalMoves?: CriticalMove[];
   isLarge?: boolean;
   onToggleSize?: () => void;
+  platform?: ChessPlatform;
 }
 
 function getVerdictIcon(type: MoveClassificationType) {
@@ -95,11 +103,17 @@ export function ChessViewer({
   criticalMoves = [],
   isLarge: externalIsLarge,
   onToggleSize,
+  platform = 'lichess',
 }: ChessViewerProps) {
+  const isChessCom = platform === 'chesscom';
   const [boardOrientation, setBoardOrientation] = useState<'white' | 'black'>(initialOrientation);
   const [internalIsLarge, setInternalIsLarge] = useState<boolean>(false);
   const boardContainerRef = useRef<HTMLDivElement>(null);
   const [boardWidth, setBoardWidth] = useState<number>(360);
+
+  // User-drawn right-click arrows and square highlights
+  const [customArrows, setCustomArrows] = useState<BoardArrow[]>([]);
+  const [customSquareStyles, setCustomSquareStyles] = useState<Record<string, React.CSSProperties>>({});
 
   const isLarge = externalIsLarge ?? internalIsLarge;
   const handleToggleSize = () => {
@@ -208,10 +222,35 @@ export function ChessViewer({
     onStepChange?.(currentStep);
   }, [currentStep, onStepChange]);
 
+  // Automatically clear user arrows and square highlights on move changes
+  useEffect(() => {
+    setCustomArrows([]);
+    setCustomSquareStyles({});
+  }, [currentStep, fen]);
+
+  const handleClearDrawings = () => {
+    setCustomArrows([]);
+    setCustomSquareStyles({});
+  };
+
+  const handleSquareRightClick = ({ square }: { square: string }) => {
+    setCustomSquareStyles((prev) => {
+      const next = { ...prev };
+      if (next[square]) {
+        delete next[square];
+      } else {
+        next[square] = {
+          backgroundColor: 'rgba(235, 97, 80, 0.7)',
+        };
+      }
+      return next;
+    });
+  };
+
   const customBoardStyle = useMemo(
     () => ({
-      borderRadius: '16px',
-      boxShadow: '0 20px 40px -15px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.08)',
+      borderRadius: '12px',
+      boxShadow: '0 4px 16px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05)',
       overflow: 'hidden',
       width: boardWidth > 0 ? `${boardWidth}px` : '100%',
       height: boardWidth > 0 ? `${boardWidth}px` : '100%',
@@ -239,17 +278,21 @@ export function ChessViewer({
         isLarge
           ? 'max-w-[760px] xl:max-w-[820px]'
           : 'max-w-[620px] xl:max-w-[680px]'
-      } mx-auto bg-zinc-900/60 backdrop-blur-xl border border-zinc-800/80 rounded-2xl sm:rounded-3xl p-3 sm:p-5 shadow-2xl transition-all duration-300`}
+      } mx-auto ${
+        isChessCom
+          ? 'bg-[#211f1c] border-[#302e2b]'
+          : 'bg-[#24221f] border-[#33312c]'
+      } border rounded-2xl sm:rounded-3xl p-3 sm:p-5 shadow-lg transition-all duration-300`}
     >
       {/* Top Player Row & Controls */}
       <div className="w-full flex items-center justify-between mb-3 px-1 gap-2 flex-wrap">
         <div className="flex items-center gap-2.5 min-w-0">
           <span className="w-3 h-3 rounded-full bg-zinc-500 border border-zinc-400 shrink-0" />
-          <span className="font-semibold text-sm text-zinc-200 truncate">
+          <span className={`font-semibold text-sm ${isChessCom ? 'text-[#c3c2c1]' : 'text-[#bababa]'} truncate`}>
             {topPlayer.name}
           </span>
           {topPlayer.rating && (
-            <span className="text-xs px-2 py-0.5 rounded-md bg-zinc-800/80 text-zinc-400 font-mono border border-zinc-700/50">
+            <span className={`text-xs px-2 py-0.5 rounded-md ${isChessCom ? 'bg-[#191815] text-[#c3c2c1] border-[#302e2b]' : 'bg-[#1c1a17] text-[#bababa] border-[#33312c]'} font-mono border`}>
               {topPlayer.rating}
             </span>
           )}
@@ -262,16 +305,20 @@ export function ChessViewer({
             type="button"
             onClick={handleToggleSize}
             title={isLarge ? 'Стандартный размер доски' : 'Увеличить размер доски'}
-            className="text-xs text-zinc-300 hover:text-white transition-all flex items-center gap-1.5 bg-zinc-800/80 hover:bg-zinc-700/80 px-2.5 py-1.5 rounded-lg border border-zinc-700/60 cursor-pointer touch-manipulation shadow-sm"
+            className={`text-xs ${
+              isChessCom
+                ? 'text-[#c3c2c1] bg-[#191815] hover:bg-[#262421] border-[#302e2b]'
+                : 'text-[#bababa] bg-[#1c1a17] hover:bg-[#292723] border-[#33312c]'
+            } hover:text-white transition-all flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border cursor-pointer touch-manipulation`}
           >
             {isLarge ? (
               <>
-                <Minimize2 className="w-3.5 h-3.5 text-cyan-400" />
+                <Minimize2 className={`w-3.5 h-3.5 ${isChessCom ? 'text-[#81b64c]' : 'text-[#3692e7]'}`} />
                 <span className="hidden sm:inline font-medium">Нормальная</span>
               </>
             ) : (
               <>
-                <Maximize2 className="w-3.5 h-3.5 text-cyan-400" />
+                <Maximize2 className={`w-3.5 h-3.5 ${isChessCom ? 'text-[#81b64c]' : 'text-[#3692e7]'}`} />
                 <span className="hidden sm:inline font-medium">Большая</span>
               </>
             )}
@@ -282,7 +329,11 @@ export function ChessViewer({
             type="button"
             onClick={toggleOrientation}
             title="Перевернуть доску"
-            className="text-xs text-zinc-400 hover:text-white transition-all flex items-center gap-1.5 bg-zinc-800/80 hover:bg-zinc-700/80 px-2.5 py-1.5 rounded-lg border border-zinc-700/60 cursor-pointer touch-manipulation shadow-sm"
+            className={`text-xs ${
+              isChessCom
+                ? 'text-[#c3c2c1] bg-[#191815] hover:bg-[#262421] border-[#302e2b]'
+                : 'text-[#bababa] bg-[#1c1a17] hover:bg-[#292723] border-[#33312c]'
+            } hover:text-white transition-all flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border cursor-pointer touch-manipulation`}
           >
             <RotateCcw className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Перевернуть</span>
@@ -292,12 +343,14 @@ export function ChessViewer({
 
       {/* Retry Banner if user clicked "Попробовать переиграть" */}
       {retryMove && (
-        <div className="w-full mb-3 p-3 rounded-2xl bg-emerald-950/50 border border-emerald-500/40 flex items-center justify-between gap-3 text-xs shadow-lg animate-in fade-in slide-in-from-top-2 duration-300">
-          <div className="flex items-center gap-2 text-emerald-300">
-            <Sparkles className="w-4 h-4 text-emerald-400 shrink-0" />
+        <div className={`w-full mb-3 p-3 rounded-2xl ${
+          isChessCom ? 'bg-[#191815] border-[#81b64c]/40 text-[#c3c2c1]' : 'bg-[#1c1a17] border-[#3692e7]/40 text-[#bababa]'
+        } border flex items-center justify-between gap-3 text-xs animate-in fade-in slide-in-from-top-2 duration-300`}>
+          <div className="flex items-center gap-2">
+            <Sparkles className={`w-4 h-4 ${isChessCom ? 'text-[#81b64c]' : 'text-[#3692e7]'} shrink-0`} />
             <span>
               Позиция перед ошибкой (ход {retryMove.moveNumber}). Рекомендованный ход:{' '}
-              <strong className="text-white font-mono bg-emerald-900/70 px-2 py-0.5 rounded-md border border-emerald-500/50 text-sm ml-1">
+              <strong className={`text-white font-mono ${isChessCom ? 'bg-[#211f1c] border-[#81b64c]/50' : 'bg-[#24221f] border-[#3692e7]/50'} px-2 py-0.5 rounded-md border text-sm ml-1`}>
                 {retryMove.betterMove}
               </strong>
             </span>
@@ -307,7 +360,7 @@ export function ChessViewer({
               type="button"
               onClick={onClearRetry}
               title="Закрыть режим переигрывания"
-              className="text-zinc-400 hover:text-white p-1 rounded hover:bg-zinc-800/60 transition-colors touch-manipulation"
+              className="text-zinc-400 hover:text-white p-1 rounded hover:bg-black/20 transition-colors touch-manipulation"
             >
               <X className="w-3.5 h-3.5" />
             </button>
@@ -324,9 +377,11 @@ export function ChessViewer({
           engineEval={currentEngineEval}
         />
 
-        {/* Chessboard Container */}
+        {/* Chessboard Container with context menu disabled */}
         <div
           ref={boardContainerRef}
+          onContextMenu={(e) => e.preventDefault()}
+          onClick={handleClearDrawings}
           className={`w-full ${
             isLarge
               ? 'max-w-[720px] xl:max-w-[760px]'
@@ -346,10 +401,37 @@ export function ChessViewer({
                 position: fen,
                 boardOrientation,
                 allowDragging: false,
+                allowDrawingArrows: true,
+                arrows: customArrows,
+                onArrowsChange: ({ arrows }) => setCustomArrows(arrows),
+                clearArrowsOnClick: true,
+                clearArrowsOnPositionChange: true,
+                squareStyles: customSquareStyles,
+                onSquareRightClick: handleSquareRightClick,
+                onSquareClick: handleClearDrawings,
                 boardStyle: customBoardStyle,
                 darkSquareStyle: { backgroundColor: '#334155' },
                 lightSquareStyle: { backgroundColor: '#cbd5e1' },
                 animationDurationInMs: 180,
+                arrowOptions: {
+                  colors: {
+                    default: isChessCom ? 'rgba(245, 158, 11, 0.85)' : 'rgba(54, 146, 231, 0.85)',
+                    shift: 'rgba(129, 182, 76, 0.85)',
+                    ctrl: 'rgba(239, 68, 68, 0.85)',
+                    alt: 'rgba(59, 130, 246, 0.85)',
+                    meta: 'rgba(168, 85, 247, 0.85)',
+                  },
+                  color: isChessCom ? 'rgba(245, 158, 11, 0.85)' : 'rgba(54, 146, 231, 0.85)',
+                  secondaryColor: 'rgba(129, 182, 76, 0.85)',
+                  tertiaryColor: 'rgba(239, 68, 68, 0.85)',
+                  arrowLengthReducerDenominator: 5,
+                  sameTargetArrowLengthReducerDenominator: 5,
+                  arrowWidthDenominator: 40,
+                  activeArrowWidthMultiplier: 1.2,
+                  opacity: 0.85,
+                  activeOpacity: 0.9,
+                  arrowStartOffset: 0,
+                },
               }}
             />
           </div>
@@ -360,18 +442,18 @@ export function ChessViewer({
       <div className="w-full flex items-center justify-between mt-3 mb-2 px-1">
         <div className="flex items-center gap-2.5 min-w-0">
           <span className="w-3 h-3 rounded-full bg-white border border-zinc-300 shrink-0 shadow-sm" />
-          <span className="font-semibold text-sm text-zinc-200 truncate">
+          <span className={`font-semibold text-sm ${isChessCom ? 'text-[#c3c2c1]' : 'text-[#bababa]'} truncate`}>
             {bottomPlayer.name}
           </span>
           {bottomPlayer.rating && (
-            <span className="text-xs px-2 py-0.5 rounded-md bg-zinc-800/80 text-zinc-400 font-mono border border-zinc-700/50">
+            <span className={`text-xs px-2 py-0.5 rounded-md ${isChessCom ? 'bg-[#191815] text-[#c3c2c1] border-[#302e2b]' : 'bg-[#1c1a17] text-[#bababa] border-[#33312c]'} font-mono border`}>
               {bottomPlayer.rating}
             </span>
           )}
         </div>
         {openingName && (
           <span
-            className="text-xs text-zinc-400 truncate max-w-[160px] sm:max-w-[220px]"
+            className={`text-xs ${isChessCom ? 'text-[#8b8987]' : 'text-[#7e7b76]'} truncate max-w-[160px] sm:max-w-[220px]`}
             title={openingName}
           >
             {openingName}
@@ -386,12 +468,12 @@ export function ChessViewer({
             const meta = CLASSIFICATION_META[currentMoveAnalysis.type];
             return (
               <div
-                className={`w-full ${meta.bgClass} border ${meta.borderClass} rounded-2xl p-3.5 sm:p-4 flex flex-col gap-2 shadow-lg transition-all`}
+                className={`w-full ${meta.bgClass} border ${meta.borderClass} rounded-2xl p-3.5 sm:p-4 flex flex-col gap-2 shadow-sm transition-all`}
               >
                 <div className="flex items-center justify-between gap-2 flex-wrap">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span
-                      className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${meta.borderClass} ${meta.colorClass} bg-zinc-950/70 shadow-sm`}
+                      className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${meta.borderClass} ${meta.colorClass} bg-black/40`}
                     >
                       {getVerdictIcon(currentMoveAnalysis.type)}
                       <span>{meta.label}</span>
@@ -409,24 +491,24 @@ export function ChessViewer({
 
                   {currentMoveAnalysis.betterMove && (
                     <div className="flex items-center gap-1.5 text-xs">
-                      <span className="text-zinc-400">Лучший ход:</span>
-                      <strong className="font-mono bg-emerald-950/80 text-emerald-300 border border-emerald-500/50 px-2 py-0.5 rounded font-bold">
+                      <span className={isChessCom ? 'text-[#8b8987]' : 'text-[#7e7b76]'}>Лучший ход:</span>
+                      <strong className={`font-mono ${isChessCom ? 'bg-[#81b64c]/20 text-[#81b64c] border-[#81b64c]/40' : 'bg-[#3692e7]/20 text-[#3692e7] border-[#3692e7]/40'} border px-2 py-0.5 rounded font-bold`}>
                         {currentMoveAnalysis.betterMove}
                       </strong>
                     </div>
                   )}
                 </div>
 
-                <p className="text-xs sm:text-sm text-zinc-200 leading-relaxed font-normal">
+                <p className={`text-xs sm:text-sm ${isChessCom ? 'text-[#c3c2c1]' : 'text-[#bababa]'} leading-relaxed font-normal`}>
                   {currentMoveAnalysis.comment}
                 </p>
               </div>
             );
           })()
         ) : (
-          <div className="w-full bg-zinc-950/60 border border-zinc-800/80 rounded-2xl p-3 flex items-center justify-between text-xs text-zinc-400">
+          <div className={`w-full ${isChessCom ? 'bg-[#191815] border-[#302e2b]' : 'bg-[#1c1a17] border-[#33312c]'} border rounded-2xl p-3 flex items-center justify-between text-xs`}>
             <span className="text-zinc-300 font-medium">Начальная позиция партии</span>
-            <span className="text-zinc-500">Кликай по ходам или используй стрелки для разбора</span>
+            <span className={isChessCom ? 'text-[#8b8987]' : 'text-[#7e7b76]'}>ПКМ: рисование стрелок и подсветка полей</span>
           </div>
         )}
       </div>
@@ -438,7 +520,11 @@ export function ChessViewer({
           onClick={goToStart}
           disabled={isStart}
           aria-label="В начало"
-          className="h-11 touch-manipulation flex items-center justify-center gap-1.5 px-2 rounded-xl text-xs sm:text-sm font-semibold bg-zinc-800/90 text-zinc-200 hover:bg-zinc-700 hover:text-white disabled:opacity-35 disabled:cursor-not-allowed transition-all border border-zinc-700/60 cursor-pointer active:scale-95 shadow-sm"
+          className={`h-11 touch-manipulation flex items-center justify-center gap-1.5 px-2 rounded-xl text-xs sm:text-sm font-semibold ${
+            isChessCom
+              ? 'bg-[#191815] text-[#c3c2c1] hover:bg-[#262421] hover:text-white border-[#302e2b]'
+              : 'bg-[#1c1a17] text-[#bababa] hover:bg-[#292723] hover:text-white border-[#33312c]'
+          } disabled:opacity-35 disabled:cursor-not-allowed transition-all border cursor-pointer active:scale-95`}
         >
           <ChevronsLeft className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
           <span className="hidden sm:inline">В начало</span>
@@ -449,7 +535,11 @@ export function ChessViewer({
           onClick={goBack}
           disabled={isStart}
           aria-label="Назад"
-          className="h-11 touch-manipulation flex items-center justify-center gap-1.5 px-2 rounded-xl text-xs sm:text-sm font-semibold bg-zinc-800/90 text-zinc-200 hover:bg-zinc-700 hover:text-white disabled:opacity-35 disabled:cursor-not-allowed transition-all border border-zinc-700/60 cursor-pointer active:scale-95 shadow-sm"
+          className={`h-11 touch-manipulation flex items-center justify-center gap-1.5 px-2 rounded-xl text-xs sm:text-sm font-semibold ${
+            isChessCom
+              ? 'bg-[#191815] text-[#c3c2c1] hover:bg-[#262421] hover:text-white border-[#302e2b]'
+              : 'bg-[#1c1a17] text-[#bababa] hover:bg-[#292723] hover:text-white border-[#33312c]'
+          } disabled:opacity-35 disabled:cursor-not-allowed transition-all border cursor-pointer active:scale-95`}
         >
           <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
           <span>Назад</span>
@@ -460,7 +550,11 @@ export function ChessViewer({
           onClick={goForward}
           disabled={isEnd}
           aria-label="Вперед"
-          className="h-11 touch-manipulation flex items-center justify-center gap-1.5 px-2 rounded-xl text-xs sm:text-sm font-semibold bg-zinc-800/90 text-zinc-200 hover:bg-zinc-700 hover:text-white disabled:opacity-35 disabled:cursor-not-allowed transition-all border border-zinc-700/60 cursor-pointer active:scale-95 shadow-sm"
+          className={`h-11 touch-manipulation flex items-center justify-center gap-1.5 px-2 rounded-xl text-xs sm:text-sm font-semibold ${
+            isChessCom
+              ? 'bg-[#191815] text-[#c3c2c1] hover:bg-[#262421] hover:text-white border-[#302e2b]'
+              : 'bg-[#1c1a17] text-[#bababa] hover:bg-[#292723] hover:text-white border-[#33312c]'
+          } disabled:opacity-35 disabled:cursor-not-allowed transition-all border cursor-pointer active:scale-95`}
         >
           <span>Вперед</span>
           <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
@@ -471,7 +565,11 @@ export function ChessViewer({
           onClick={goToEnd}
           disabled={isEnd}
           aria-label="В конец"
-          className="h-11 touch-manipulation flex items-center justify-center gap-1.5 px-2 rounded-xl text-xs sm:text-sm font-semibold bg-zinc-800/90 text-zinc-200 hover:bg-zinc-700 hover:text-white disabled:opacity-35 disabled:cursor-not-allowed transition-all border border-zinc-700/60 cursor-pointer active:scale-95 shadow-sm"
+          className={`h-11 touch-manipulation flex items-center justify-center gap-1.5 px-2 rounded-xl text-xs sm:text-sm font-semibold ${
+            isChessCom
+              ? 'bg-[#191815] text-[#c3c2c1] hover:bg-[#262421] hover:text-white border-[#302e2b]'
+              : 'bg-[#1c1a17] text-[#bababa] hover:bg-[#292723] hover:text-white border-[#33312c]'
+          } disabled:opacity-35 disabled:cursor-not-allowed transition-all border cursor-pointer active:scale-95`}
         >
           <span className="hidden sm:inline">В конец</span>
           <ChevronsRight className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
@@ -479,13 +577,13 @@ export function ChessViewer({
       </div>
 
       {/* Interactive Move Notation List with Chess.com Badges */}
-      <div className="w-full bg-zinc-950/70 border border-zinc-800/80 rounded-2xl p-3 flex flex-col gap-2 shadow-inner">
-        <div className="flex items-center justify-between text-xs text-zinc-400 font-medium px-1">
+      <div className={`w-full ${isChessCom ? 'bg-[#191815] border-[#302e2b]' : 'bg-[#1c1a17] border-[#33312c]'} border rounded-2xl p-3 flex flex-col gap-2`}>
+        <div className="flex items-center justify-between text-xs font-medium px-1">
           <span className="flex items-center gap-1.5 text-zinc-300">
-            <ListOrdered className="w-3.5 h-3.5 text-emerald-400" />
+            <ListOrdered className={`w-3.5 h-3.5 ${isChessCom ? 'text-[#81b64c]' : 'text-[#3692e7]'}`} />
             <span>Нотация партии</span>
           </span>
-          <span className="font-mono text-[11px] text-zinc-500">
+          <span className={`font-mono text-[11px] ${isChessCom ? 'text-[#8b8987]' : 'text-[#7e7b76]'}`}>
             Ход: {currentStep} / {totalSteps}
           </span>
         </div>
@@ -494,10 +592,10 @@ export function ChessViewer({
           {movePairs.map((pair) => (
             <div
               key={pair.moveNumber}
-              className="grid grid-cols-12 gap-1.5 items-center py-1 px-1.5 rounded-lg hover:bg-zinc-900/60 transition-colors"
+              className={`grid grid-cols-12 gap-1.5 items-center py-1 px-1.5 rounded-lg ${isChessCom ? 'hover:bg-[#262421]' : 'hover:bg-[#292723]'} transition-colors`}
             >
               {/* Move Number */}
-              <span className="col-span-2 text-zinc-500 font-mono text-right pr-2">
+              <span className={`col-span-2 ${isChessCom ? 'text-[#8b8987]' : 'text-[#7e7b76]'} font-mono text-right pr-2`}>
                 {pair.moveNumber}.
               </span>
 
@@ -509,8 +607,12 @@ export function ChessViewer({
                     onClick={() => goToStep(pair.white!.ply)}
                     className={`w-full flex items-center justify-between px-2 py-1 rounded-md transition-all font-mono text-left cursor-pointer ${
                       currentStep === pair.white.ply
-                        ? 'bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/50 shadow-sm'
-                        : 'hover:bg-zinc-800/80 text-zinc-300'
+                        ? isChessCom
+                          ? 'bg-[#81b64c]/20 text-[#81b64c] font-bold border border-[#81b64c]/50'
+                          : 'bg-[#3692e7]/20 text-[#3692e7] font-bold border border-[#3692e7]/50'
+                        : isChessCom
+                          ? 'hover:bg-[#262421] text-[#c3c2c1]'
+                          : 'hover:bg-[#292723] text-[#bababa]'
                     }`}
                   >
                     <span>{pair.white.san}</span>
@@ -534,8 +636,12 @@ export function ChessViewer({
                     onClick={() => goToStep(pair.black!.ply)}
                     className={`w-full flex items-center justify-between px-2 py-1 rounded-md transition-all font-mono text-left cursor-pointer ${
                       currentStep === pair.black.ply
-                        ? 'bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/50 shadow-sm'
-                        : 'hover:bg-zinc-800/80 text-zinc-300'
+                        ? isChessCom
+                          ? 'bg-[#81b64c]/20 text-[#81b64c] font-bold border border-[#81b64c]/50'
+                          : 'bg-[#3692e7]/20 text-[#3692e7] font-bold border border-[#3692e7]/50'
+                        : isChessCom
+                          ? 'hover:bg-[#262421] text-[#c3c2c1]'
+                          : 'hover:bg-[#292723] text-[#bababa]'
                     }`}
                   >
                     <span>{pair.black.san}</span>
