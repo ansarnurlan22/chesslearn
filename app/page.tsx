@@ -1,7 +1,7 @@
 import { ChessDashboard } from '@/components/chess-dashboard';
 import type { ChessPlatform, UnifiedPlayerProfile } from '@/lib/api/types';
 import { getUnifiedPlayerProfile, PlatformApiError } from '@/lib/api/unified';
-import { Crown, Sparkles } from 'lucide-react';
+import { Crown } from 'lucide-react';
 import { Suspense } from 'react';
 
 interface PageProps {
@@ -59,30 +59,18 @@ export default function Home({ searchParams }: PageProps) {
               <Crown className="w-5 h-5 text-zinc-950 stroke-[2.5]" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-base tracking-tight text-white block leading-none">
-                  ChessPulse
-                </span>
-                <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
-                  Universal
-                </span>
-              </div>
-              <span className="text-[11px] text-zinc-400 font-medium">
-                Lichess & Chess.com Companion
+              <span className="font-bold text-lg tracking-tight text-white block leading-none">
+                ChessPulse
               </span>
             </div>
           </a>
 
           <div className="flex items-center gap-2 sm:gap-3 text-xs">
-            <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-zinc-900/80 border border-zinc-800 text-zinc-400">
-              <Sparkles className="w-3 h-3 text-emerald-400" />
-              <span>Двойная интеграция</span>
-            </div>
             <a
               href="https://lichess.org"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-zinc-400 hover:text-white px-2.5 py-1.5 rounded-lg bg-zinc-900/60 hover:bg-zinc-800 border border-zinc-800 transition-all"
+              className="text-zinc-400 hover:text-white px-2 sm:px-2.5 py-1.5 rounded-lg bg-zinc-900/60 hover:bg-zinc-800 border border-zinc-800 transition-all text-[11px] sm:text-xs"
             >
               Lichess ↗
             </a>
@@ -90,7 +78,7 @@ export default function Home({ searchParams }: PageProps) {
               href="https://chess.com"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-zinc-400 hover:text-white px-2.5 py-1.5 rounded-lg bg-zinc-900/60 hover:bg-zinc-800 border border-zinc-800 transition-all"
+              className="text-zinc-400 hover:text-white px-2 sm:px-2.5 py-1.5 rounded-lg bg-zinc-900/60 hover:bg-zinc-800 border border-zinc-800 transition-all text-[11px] sm:text-xs"
             >
               Chess.com ↗
             </a>
@@ -118,7 +106,7 @@ export default function Home({ searchParams }: PageProps) {
           <div className="flex items-center gap-2">
             <Crown className="w-4 h-4 text-emerald-500" />
             <span className="font-semibold text-zinc-400">ChessPulse</span>
-            <span>— Единая аналитика для Lichess и Chess.com</span>
+            <span>— Анализ шахматных партий</span>
           </div>
           <div className="flex items-center gap-3 text-zinc-500">
             <span>Открытые API:</span>

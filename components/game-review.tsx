@@ -231,12 +231,11 @@ export function GameReview({
           </div>
           <div>
             <h3 className="font-bold text-base text-white flex items-center gap-2">
-              <span>AI Game Review</span>
+              <span>Разбор партии</span>
               <span className="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 font-mono">
-                Gemini
+                AI
               </span>
             </h3>
-            <p className="text-xs text-zinc-400">Гроссмейстерский разбор ходов и классификация в стиле Chess.com</p>
           </div>
         </div>
 

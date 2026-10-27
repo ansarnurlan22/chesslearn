@@ -15,7 +15,6 @@ import {
   Loader2,
   MinusCircle,
   Search,
-  Sparkles,
   Swords,
   Trophy,
   User,
@@ -149,12 +148,6 @@ export function ChessDashboard({
     <div className="w-full flex flex-col gap-10 pt-10 pb-16">
       {/* Hero Section */}
       <section className="flex flex-col items-center text-center max-w-3xl mx-auto px-4">
-        {/* Top Feature Pill */}
-        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-medium mb-6 shadow-sm backdrop-blur-md">
-          <Sparkles className="w-3.5 h-3.5" />
-          <span>Поддержка Lichess & Chess.com</span>
-        </div>
-
         {/* Gradient Main Title */}
         <h1 className="text-4xl sm:text-6xl font-black tracking-tight text-white mb-4 leading-tight">
           Анализ партий{' '}
@@ -164,7 +157,7 @@ export function ChessDashboard({
         </h1>
 
         <p className="text-zinc-400 text-base sm:text-lg max-w-xl mb-8 leading-relaxed">
-          Изучай рейтинги, процент побед и интерактивно разбирай недавние партии с обеих главных шахматных платформ в едином интерфейсе.
+          Изучай статистику, просматривай партии и получай подробный анализ ходов с точностью и оценкой позиции.
         </p>
 
         {/* Glassmorphism Search & Platform Selector Card */}
@@ -205,7 +198,7 @@ export function ChessDashboard({
                 type="text"
                 value={usernameInput}
                 onChange={(e) => setUsernameInput(e.target.value)}
-                placeholder={`Никнейм на ${platform === 'chesscom' ? 'Chess.com' : 'Lichess'}...`}
+                placeholder="Никнейм игрока..."
                 className="w-full bg-zinc-950/80 border border-zinc-800/80 focus:border-emerald-500/60 text-white placeholder:text-zinc-500 rounded-xl px-4 py-3.5 pl-11 text-sm sm:text-base outline-none transition-all focus:ring-2 focus:ring-emerald-500/50"
                 disabled={isPending}
               />

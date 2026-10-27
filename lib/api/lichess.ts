@@ -49,7 +49,7 @@ export async function fetchUserGames(
     return [];
   }
 
-  const url = `${LICHESS_BASE}/games/user/${encodeURIComponent(cleanUsername)}?max=${count}&pgnInJson=true&opening=true`;
+  const url = `${LICHESS_BASE}/games/user/${encodeURIComponent(cleanUsername)}?max=${count}&pgnInJson=true&opening=true&evals=true`;
 
   const response = await fetch(url, {
     headers: {

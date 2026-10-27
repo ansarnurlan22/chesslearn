@@ -6,6 +6,7 @@ import {
   CLASSIFICATION_META,
   classifyGameMoves,
 } from '@/lib/chess-classifier';
+import { parsePgnEvaluations } from '@/lib/eval-parser';
 import type {
   CriticalMove,
   MoveAnalysis,
@@ -157,6 +158,10 @@ export function ChessViewer({
     goToEnd,
     goToStep,
   } = useChessGame({ pgn, moves });
+
+  // Extract embedded evaluations from PGN comments if present
+  const pgnEvals = useMemo(() => parsePgnEvaluations(pgn || ''), [pgn]);
+  const currentEngineEval = currentStep > 0 ? pgnEvals.get(currentStep) ?? null : null;
 
   // Classify all moves of the game
   const { moves: classifiedMoves } = useMemo(
@@ -313,7 +318,11 @@ export function ChessViewer({
       {/* Main Board Area with Vertical Eval Bar on the left */}
       <div className="flex items-center justify-center gap-2 sm:gap-3.5 w-full my-1">
         {/* Vertical Eval Bar */}
-        <EvalBar fen={fen} orientation={boardOrientation} />
+        <EvalBar
+          fen={fen}
+          orientation={boardOrientation}
+          engineEval={currentEngineEval}
+        />
 
         {/* Chessboard Container */}
         <div
