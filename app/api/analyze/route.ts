@@ -1,3 +1,4 @@
+import { classifyGameMoves } from '@/lib/chess-classifier';
 import type { CriticalMove, CriticalMoveType, GameReviewData } from '@/types/review';
 import { Chess } from 'chess.js';
 import { NextResponse } from 'next/server';
@@ -133,6 +134,8 @@ function generateMockReview(
     }
   }
 
+  const { moves: allMoves, stats } = classifyGameMoves(pgn, criticalMoves);
+
   return {
     accuracy: {
       white: whiteAccuracy,
@@ -142,6 +145,8 @@ function generateMockReview(
     keyTakeaway:
       'Концентрируйтесь на контроле открытых вертикалей перед разменом ферзей и не спешите двигать пешки вокруг короля в сложной позиции.',
     criticalMoves,
+    allMoves,
+    stats,
   };
 }
 
@@ -233,6 +238,9 @@ ${pgn}
 
     try {
       const parsed: GameReviewData = JSON.parse(candidateText);
+      const { moves: allMoves, stats } = classifyGameMoves(pgn, parsed.criticalMoves || []);
+      parsed.allMoves = allMoves;
+      parsed.stats = stats;
       return NextResponse.json(parsed);
     } catch {
       const mockData = generateMockReview(pgn, playerColor, username);

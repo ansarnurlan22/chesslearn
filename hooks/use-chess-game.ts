@@ -18,6 +18,7 @@ export interface ChessGameState {
   turn: 'w' | 'b';
   lastMove: { from: string; to: string } | null;
   moveNotation: string;
+  moveHistory: Array<{ san: string; from: string; to: string }>;
   goToStart: () => void;
   goBack: () => void;
   goForward: () => void;
@@ -130,6 +131,7 @@ export function useChessGame({
     turn,
     lastMove,
     moveNotation,
+    moveHistory,
     goToStart,
     goBack,
     goForward,

@@ -3,6 +3,7 @@
 import { ChessViewer } from '@/components/chess-viewer';
 import { GameReview } from '@/components/game-review';
 import type { ChessPlatform, UnifiedGame, UnifiedPlayerProfile } from '@/lib/api/types';
+import type { GameReviewData } from '@/types/review';
 import {
   AlertCircle,
   Calendar,
@@ -53,6 +54,8 @@ export function ChessDashboard({
   );
   const [targetStep, setTargetStep] = useState<number | null>(null);
   const [activeStep, setActiveStep] = useState<number>(0);
+  const [isLargeBoard, setIsLargeBoard] = useState<boolean>(false);
+  const [loadedReview, setLoadedReview] = useState<GameReviewData | null>(null);
   const [retryMove, setRetryMove] = useState<{
     moveNumber: number;
     ply: number;
@@ -81,10 +84,11 @@ export function ChessDashboard({
     setRetryMove(null);
   }, [profile?.username, profile?.platform]);
 
-  // Reset targetStep and retry when game selection changes
+  // Reset targetStep, retry and loadedReview when game selection changes
   useEffect(() => {
     setTargetStep(null);
     setRetryMove(null);
+    setLoadedReview(null);
   }, [selectedGameId]);
 
   const handleSelectMovePly = (ply: number) => {
@@ -468,7 +472,11 @@ export function ChessDashboard({
           {/* Main Layout: Mobile = 1 column (Board -> Game Review -> Recent Games); Desktop = 2 columns (Left: Matches, Right: Board + Review) */}
           <section className="flex flex-col lg:grid lg:grid-cols-12 gap-8 items-start">
             {/* Interactive Chessboard & AI Game Review (First on mobile, right column on desktop) */}
-            <div className="w-full order-1 lg:order-2 lg:col-span-7 flex flex-col gap-6">
+            <div
+              className={`w-full order-1 lg:order-2 ${
+                isLargeBoard ? 'lg:col-span-8 xl:col-span-9' : 'lg:col-span-7'
+              } flex flex-col gap-6 transition-all duration-300`}
+            >
               {selectedGame ? (
                 <>
                   <div className="flex flex-col gap-2.5">
@@ -507,6 +515,9 @@ export function ChessDashboard({
                       onStepChange={setActiveStep}
                       retryMove={retryMove}
                       onClearRetry={() => setRetryMove(null)}
+                      criticalMoves={loadedReview?.criticalMoves}
+                      isLarge={isLargeBoard}
+                      onToggleSize={() => setIsLargeBoard((prev) => !prev)}
                     />
                   </div>
 
@@ -518,6 +529,7 @@ export function ChessDashboard({
                     username={profile.username}
                     onSelectMovePly={handleSelectMovePly}
                     onRetryMove={handleRetryMove}
+                    onReviewLoaded={setLoadedReview}
                     activePly={activeStep}
                   />
                 </>
@@ -529,7 +541,11 @@ export function ChessDashboard({
             </div>
 
             {/* Recent Matches (Second on mobile, left column on desktop) */}
-            <div className="w-full order-2 lg:order-1 lg:col-span-5 flex flex-col gap-3.5">
+            <div
+              className={`w-full order-2 lg:order-1 ${
+                isLargeBoard ? 'lg:col-span-4 xl:col-span-3' : 'lg:col-span-5'
+              } flex flex-col gap-3.5 transition-all duration-300`}
+            >
               <div className="flex items-center justify-between mb-1 px-1">
                 <div className="flex items-center gap-2">
                   <Swords className="w-4 h-4 text-emerald-400" />
