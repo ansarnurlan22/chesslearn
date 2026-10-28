@@ -1,4 +1,14 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ChessCheese 🧀
+
+Умный веб-сервис анализа шахматных партий с Chess.com и Lichess с интерактивной доской и персональным AI-гроссмейстером ChessCheese Bot на базе Google Gemini.
+
+## Возможности
+- 🧀 Анализ профилей и недавних партий игроков Lichess и Chess.com
+- 🎯 Оценка ходов (Brilliant, Great, Best, Book, Mistake, Blunder) и график преимущества
+- 🟡 Подсветка последнего хода в стиле Chess.com
+- 🏹 Крупные стрелки по ПКМ (12–14px)
+- 🤖 Персональный AI-гроссмейстер ChessCheese Bot на базе Gemini API
+
 
 ## Getting Started
 

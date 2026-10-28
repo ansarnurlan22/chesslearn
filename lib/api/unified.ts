@@ -2,7 +2,7 @@ import { fetchUserGames, fetchUserProfile, LichessApiError } from '@/lib/api/lic
 import type { ChessPlatform, UnifiedGame, UnifiedPlayerProfile } from '@/lib/api/types';
 
 const CHESSCOM_BASE = 'https://api.chess.com/pub';
-const USER_AGENT = 'ChessPulse-App/1.0 (contact: user@chesspulse.dev)';
+const USER_AGENT = 'ChessCheese-App/1.0 (contact: user@chesscheese.dev)';
 
 export class PlatformApiError extends Error {
   constructor(

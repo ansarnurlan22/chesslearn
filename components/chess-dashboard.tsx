@@ -1,7 +1,9 @@
 'use client';
 
+import { ChessChat } from '@/components/chess-chat';
 import { ChessViewer } from '@/components/chess-viewer';
 import { GameReview } from '@/components/game-review';
+import { Logo } from '@/components/logo';
 import type { ChessPlatform, UnifiedGame, UnifiedPlayerProfile } from '@/lib/api/types';
 import type { GameReviewData } from '@/types/review';
 import {
@@ -63,6 +65,17 @@ export function ChessDashboard({
     ply: number;
     betterMove: string;
   } | null>(null);
+  const [currentGameState, setCurrentGameState] = useState<{
+    fen: string;
+    turn: 'w' | 'b';
+    currentStep: number;
+    moveNumber: number;
+  }>({
+    fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+    turn: 'w',
+    currentStep: 0,
+    moveNumber: 1,
+  });
 
   // Sync state when props change
   useEffect(() => {
@@ -153,14 +166,7 @@ export function ChessDashboard({
       <header className={`sticky top-0 z-50 backdrop-blur-md ${isChessCom ? 'bg-[#161512]/95 border-[#302e2b]' : 'bg-[#161512]/95 border-[#33312c]'} border-b transition-colors`}>
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <a href="/" className="flex items-center gap-3 group">
-            <div className={`w-9 h-9 rounded-lg ${isChessCom ? 'bg-[#211f1c] border-[#302e2b] text-[#81b64c]' : 'bg-[#24221f] border-[#33312c] text-[#3692e7]'} border flex items-center justify-center transition-colors`}>
-              <Crown className="w-5 h-5 stroke-[2.5]" />
-            </div>
-            <div>
-              <span className="font-bold text-lg tracking-tight text-white block leading-none">
-                ChessPulse
-              </span>
-            </div>
+            <Logo size="md" />
           </a>
 
           <div className="flex items-center gap-2 sm:gap-3 text-xs">
@@ -573,6 +579,7 @@ export function ChessDashboard({
                           openingName={selectedGame.opening}
                           targetStep={targetStep}
                           onStepChange={setActiveStep}
+                          onGameStateChange={setCurrentGameState}
                           retryMove={retryMove}
                           onClearRetry={() => setRetryMove(null)}
                           criticalMoves={loadedReview?.criticalMoves}
@@ -581,6 +588,16 @@ export function ChessDashboard({
                           platform={platform}
                         />
                       </div>
+
+                      {/* AI Grandmaster Mentor Chat */}
+                      <ChessChat
+                        key={`chat-${selectedGame.id}`}
+                        currentFen={currentGameState.fen}
+                        moveNumber={currentGameState.moveNumber}
+                        turn={currentGameState.turn}
+                        pgn={selectedGame.pgn}
+                        platform={platform}
+                      />
 
                       {/* AI Game Review Card */}
                       <GameReview
@@ -725,9 +742,9 @@ export function ChessDashboard({
       <footer className={`border-t ${isChessCom ? 'border-[#302e2b] bg-[#161512] text-[#8b8987]' : 'border-[#33312c] bg-[#161512] text-[#7e7b76]'} py-8 text-center text-xs transition-colors`}>
         <div className="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <Crown className={`w-4 h-4 ${isChessCom ? 'text-[#81b64c]' : 'text-[#3692e7]'}`} />
-            <span className="font-semibold text-zinc-300">ChessPulse</span>
-            <span>— Анализ шахматных партий</span>
+            <Logo size="sm" />
+            <span className="text-zinc-500">•</span>
+            <span>Анализ шахматных партий & AI-наставник</span>
           </div>
           <div className="flex items-center gap-3">
             <span>Открытые API:</span>

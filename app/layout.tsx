@@ -13,9 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'ChessPulse — Умный анализ твоих шахматных партий',
+  title: 'ChessCheese — Умный анализ твоих шахматных партий и AI-наставник',
   description:
-    'Анализируй партии с Lichess, просматривай рейтинги и разбирай ходы на интерактивной доске.',
+    'Анализируй партии с Chess.com и Lichess, общайся с AI-гроссмейстером ChessCheese Bot и разбирай ходы на интерактивной доске.',
 };
 
 export default function RootLayout({

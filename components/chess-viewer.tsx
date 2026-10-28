@@ -58,6 +58,13 @@ export interface ChessViewerProps {
   openingName?: string;
   targetStep?: number | null;
   onStepChange?: (step: number) => void;
+  onGameStateChange?: (state: {
+    fen: string;
+    turn: 'w' | 'b';
+    currentStep: number;
+    moveNumber: number;
+    pgn?: string;
+  }) => void;
   retryMove?: RetryMoveInfo | null;
   onClearRetry?: () => void;
   criticalMoves?: CriticalMove[];
@@ -98,6 +105,7 @@ export function ChessViewer({
   openingName,
   targetStep,
   onStepChange,
+  onGameStateChange,
   retryMove,
   onClearRetry,
   criticalMoves = [],
@@ -165,6 +173,8 @@ export function ChessViewer({
     totalSteps,
     isStart,
     isEnd,
+    turn,
+    lastMove,
     moveNotation,
     goToStart,
     goBack,
@@ -222,6 +232,48 @@ export function ChessViewer({
     onStepChange?.(currentStep);
   }, [currentStep, onStepChange]);
 
+  // Notify parent on full game state change (for AI chat mentor)
+  useEffect(() => {
+    onGameStateChange?.({
+      fen,
+      turn,
+      currentStep,
+      moveNumber: currentStep > 0 ? Math.ceil(currentStep / 2) : 1,
+      pgn,
+    });
+  }, [fen, turn, currentStep, pgn, onGameStateChange]);
+
+  // Keyboard navigation: Left/Right arrows scrub through moves, Up/Down go to start/end
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target?.isContentEditable
+      ) {
+        return;
+      }
+
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        goBack();
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        goForward();
+      } else if (e.key === 'ArrowUp' || e.key === 'Home') {
+        e.preventDefault();
+        goToStart();
+      } else if (e.key === 'ArrowDown' || e.key === 'End') {
+        e.preventDefault();
+        goToEnd();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [goBack, goForward, goToStart, goToEnd]);
+
   // Automatically clear user arrows and square highlights on move changes
   useEffect(() => {
     setCustomArrows([]);
@@ -246,6 +298,30 @@ export function ChessViewer({
       return next;
     });
   };
+
+  // Merge user highlights with Chess.com style last move highlight
+  const mergedSquareStyles = useMemo(() => {
+    const styles: Record<string, React.CSSProperties> = { ...customSquareStyles };
+
+    // Highlight from & to squares for the current active move
+    if (lastMove?.from && lastMove?.to) {
+      const highlightColor = 'rgba(255, 255, 51, 0.4)';
+      styles[lastMove.from] = {
+        ...styles[lastMove.from],
+        backgroundColor: highlightColor,
+      };
+      styles[lastMove.to] = {
+        ...styles[lastMove.to],
+        backgroundColor: highlightColor,
+      };
+    }
+
+    return styles;
+  }, [customSquareStyles, lastMove]);
+
+  // Dense and crisp arrows (12–14px thick with large arrowhead)
+  const squareWidth = boardWidth > 0 ? boardWidth / 8 : 45;
+  const arrowWidthDenominator = Math.max(1, squareWidth / 13);
 
   const customBoardStyle = useMemo(
     () => ({
@@ -406,7 +482,7 @@ export function ChessViewer({
                 onArrowsChange: ({ arrows }) => setCustomArrows(arrows),
                 clearArrowsOnClick: true,
                 clearArrowsOnPositionChange: true,
-                squareStyles: customSquareStyles,
+                squareStyles: mergedSquareStyles,
                 onSquareRightClick: handleSquareRightClick,
                 onSquareClick: handleClearDrawings,
                 boardStyle: customBoardStyle,
@@ -415,22 +491,22 @@ export function ChessViewer({
                 animationDurationInMs: 180,
                 arrowOptions: {
                   colors: {
-                    default: isChessCom ? 'rgba(245, 158, 11, 0.85)' : 'rgba(54, 146, 231, 0.85)',
+                    default: 'rgba(255, 170, 0, 0.85)',
                     shift: 'rgba(129, 182, 76, 0.85)',
                     ctrl: 'rgba(239, 68, 68, 0.85)',
                     alt: 'rgba(59, 130, 246, 0.85)',
                     meta: 'rgba(168, 85, 247, 0.85)',
                   },
-                  color: isChessCom ? 'rgba(245, 158, 11, 0.85)' : 'rgba(54, 146, 231, 0.85)',
+                  color: 'rgba(255, 170, 0, 0.85)',
                   secondaryColor: 'rgba(129, 182, 76, 0.85)',
                   tertiaryColor: 'rgba(239, 68, 68, 0.85)',
                   arrowLengthReducerDenominator: 5,
                   sameTargetArrowLengthReducerDenominator: 5,
-                  arrowWidthDenominator: 40,
-                  activeArrowWidthMultiplier: 1.2,
+                  arrowWidthDenominator,
+                  activeArrowWidthMultiplier: 1.0,
                   opacity: 0.85,
-                  activeOpacity: 0.9,
-                  arrowStartOffset: 0,
+                  activeOpacity: 0.85,
+                  arrowStartOffset: 0.2,
                 },
               }}
             />

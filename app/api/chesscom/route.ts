@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const USER_AGENT = 'ChessPulse-App/1.0 (contact: user@chesspulse.dev)';
+const USER_AGENT = 'ChessCheese-App/1.0 (contact: user@chesscheese.dev)';
 const CHESSCOM_BASE = 'https://api.chess.com/pub';
 
 interface ChessComStatsRating {
