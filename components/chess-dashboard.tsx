@@ -1,13 +1,15 @@
 'use client';
 
-import { ChessChat } from '@/components/chess-chat';
+import { ChessChat, type ActiveMoveContext } from '@/components/chess-chat';
 import { ChessViewer } from '@/components/chess-viewer';
 import { GameReview } from '@/components/game-review';
 import { Logo } from '@/components/logo';
 import type { ChessPlatform, UnifiedGame, UnifiedPlayerProfile } from '@/lib/api/types';
-import type { GameReviewData } from '@/types/review';
+import { CLASSIFICATION_META } from '@/lib/chess-classifier';
+import type { GameReviewData, MoveAnalysis } from '@/types/review';
 import {
   AlertCircle,
+  Bot,
   Calendar,
   CheckCircle2,
   Clock,
@@ -18,6 +20,7 @@ import {
   Loader2,
   MinusCircle,
   Search,
+  Sparkles,
   Swords,
   Trophy,
   User,
@@ -25,7 +28,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState, useTransition } from 'react';
+import { useEffect, useMemo, useState, useTransition } from 'react';
 
 export interface ChessDashboardProps {
   initialUsername?: string;
@@ -70,12 +73,38 @@ export function ChessDashboard({
     turn: 'w' | 'b';
     currentStep: number;
     moveNumber: number;
+    activeMove?: MoveAnalysis | null;
   }>({
     fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
     turn: 'w',
     currentStep: 0,
     moveNumber: 1,
+    activeMove: null,
   });
+  const [sidebarTab, setSidebarTab] = useState<'review' | 'chat'>('review');
+
+  const activeMoveContext: ActiveMoveContext | null = useMemo(() => {
+    const mv = currentGameState.activeMove;
+    if (!mv) return null;
+    return {
+      ply: mv.ply,
+      moveNumber: mv.moveNumber,
+      san: mv.san,
+      color: mv.color,
+      classification: CLASSIFICATION_META[mv.type]?.label || 'Хороший',
+      type: mv.type,
+      glyph: mv.glyph,
+      score: mv.score || '0.0',
+      bestMove: mv.betterMove || mv.san,
+      pvLine: mv.pvLine,
+      comment: mv.comment,
+    };
+  }, [currentGameState.activeMove]);
+
+  const handleAskCoach = (ply: number) => {
+    setTargetStep(ply);
+    setSidebarTab('chat');
+  };
 
   // Sync state when props change
   useEffect(() => {
@@ -583,34 +612,92 @@ export function ChessDashboard({
                           retryMove={retryMove}
                           onClearRetry={() => setRetryMove(null)}
                           criticalMoves={loadedReview?.criticalMoves}
+                          allMoves={loadedReview?.allMoves}
                           isLarge={isLargeBoard}
                           onToggleSize={() => setIsLargeBoard((prev) => !prev)}
                           platform={platform}
                         />
                       </div>
 
-                      {/* AI Grandmaster Mentor Chat */}
-                      <ChessChat
-                        key={`chat-${selectedGame.id}`}
-                        currentFen={currentGameState.fen}
-                        moveNumber={currentGameState.moveNumber}
-                        turn={currentGameState.turn}
-                        pgn={selectedGame.pgn}
-                        platform={platform}
-                      />
+                      {/* Unified Review & AI Coach Chat Panel */}
+                      <div className="w-full flex flex-col gap-3">
+                        {/* Tab Switcher */}
+                        <div
+                          className={`p-1.5 rounded-2xl ${
+                            isChessCom
+                              ? 'bg-[#211f1c] border-[#302e2b]'
+                              : 'bg-[#24221f] border-[#33312c]'
+                          } border flex items-center gap-2 shadow-sm`}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => setSidebarTab('review')}
+                            className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+                              sidebarTab === 'review'
+                                ? isChessCom
+                                  ? 'bg-[#81b64c] text-white shadow-md'
+                                  : 'bg-[#3692e7] text-white shadow-md'
+                                : isChessCom
+                                  ? 'text-[#8b8987] hover:text-white'
+                                  : 'text-[#7e7b76] hover:text-white'
+                            }`}
+                          >
+                            <Sparkles className="w-4 h-4" />
+                            <span>Разбор партии</span>
+                            {loadedReview && (
+                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-black/25 text-white font-mono">
+                                {loadedReview.accuracy[selectedOrientation].toFixed(0)}%
+                              </span>
+                            )}
+                          </button>
 
-                      {/* AI Game Review Card */}
-                      <GameReview
-                        key={selectedGame.id}
-                        pgn={selectedGame.pgn}
-                        playerColor={selectedOrientation}
-                        username={profile.username}
-                        onSelectMovePly={handleSelectMovePly}
-                        onRetryMove={handleRetryMove}
-                        onReviewLoaded={setLoadedReview}
-                        activePly={activeStep}
-                        platform={platform}
-                      />
+                          <button
+                            type="button"
+                            onClick={() => setSidebarTab('chat')}
+                            className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+                              sidebarTab === 'chat'
+                                ? 'bg-gradient-to-r from-[#f59e0b] to-[#fbbf24] text-zinc-950 shadow-md font-black'
+                                : isChessCom
+                                  ? 'text-[#8b8987] hover:text-white'
+                                  : 'text-[#7e7b76] hover:text-white'
+                            }`}
+                          >
+                            <Bot className="w-4 h-4" />
+                            <span>Чат с тренером</span>
+                            {activeMoveContext?.san && (
+                              <span className="text-[10px] px-2 py-0.5 rounded-md bg-black/20 font-mono font-bold">
+                                {activeMoveContext.san} ({activeMoveContext.classification})
+                              </span>
+                            )}
+                          </button>
+                        </div>
+
+                        {/* Active Panel View */}
+                        {sidebarTab === 'review' ? (
+                          <GameReview
+                            key={selectedGame.id}
+                            pgn={selectedGame.pgn}
+                            playerColor={selectedOrientation}
+                            username={profile.username}
+                            onSelectMovePly={handleSelectMovePly}
+                            onRetryMove={handleRetryMove}
+                            onAskCoach={handleAskCoach}
+                            onReviewLoaded={setLoadedReview}
+                            activePly={activeStep}
+                            platform={platform}
+                          />
+                        ) : (
+                          <ChessChat
+                            key={`chat-${selectedGame.id}`}
+                            currentFen={currentGameState.fen}
+                            moveNumber={currentGameState.moveNumber}
+                            turn={currentGameState.turn}
+                            pgn={selectedGame.pgn}
+                            platform={platform}
+                            activeMove={activeMoveContext}
+                          />
+                        )}
+                      </div>
                     </>
                   ) : (
                     <div className={`p-16 text-center ${isChessCom ? 'bg-[#211f1c] border-[#302e2b] text-[#8b8987]' : 'bg-[#24221f] border-[#33312c] text-[#7e7b76]'} rounded-3xl border text-sm`}>

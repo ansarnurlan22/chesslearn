@@ -64,10 +64,12 @@ export interface ChessViewerProps {
     currentStep: number;
     moveNumber: number;
     pgn?: string;
+    activeMove?: MoveAnalysis | null;
   }) => void;
   retryMove?: RetryMoveInfo | null;
   onClearRetry?: () => void;
   criticalMoves?: CriticalMove[];
+  allMoves?: MoveAnalysis[];
   isLarge?: boolean;
   onToggleSize?: () => void;
   platform?: ChessPlatform;
@@ -109,6 +111,7 @@ export function ChessViewer({
   retryMove,
   onClearRetry,
   criticalMoves = [],
+  allMoves,
   isLarge: externalIsLarge,
   onToggleSize,
   platform = 'lichess',
@@ -187,11 +190,13 @@ export function ChessViewer({
   const pgnEvals = useMemo(() => parsePgnEvaluations(pgn || ''), [pgn]);
   const currentEngineEval = currentStep > 0 ? pgnEvals.get(currentStep) ?? null : null;
 
-  // Classify all moves of the game
-  const { moves: classifiedMoves } = useMemo(
-    () => classifyGameMoves(pgn || '', criticalMoves),
-    [pgn, criticalMoves],
-  );
+  // Classify all moves of the game (using loaded Stockfish engine results if available)
+  const classifiedMoves = useMemo(() => {
+    if (allMoves && allMoves.length > 0) {
+      return allMoves;
+    }
+    return classifyGameMoves(pgn || '', criticalMoves).moves;
+  }, [allMoves, pgn, criticalMoves]);
 
   // Group moves into pairs (White & Black) for notation display
   const movePairs = useMemo(() => {
@@ -240,8 +245,9 @@ export function ChessViewer({
       currentStep,
       moveNumber: currentStep > 0 ? Math.ceil(currentStep / 2) : 1,
       pgn,
+      activeMove: currentMoveAnalysis,
     });
-  }, [fen, turn, currentStep, pgn, onGameStateChange]);
+  }, [fen, turn, currentStep, pgn, currentMoveAnalysis, onGameStateChange]);
 
   // Keyboard navigation: Left/Right arrows scrub through moves, Up/Down go to start/end
   useEffect(() => {

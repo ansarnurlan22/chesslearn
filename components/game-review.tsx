@@ -32,6 +32,7 @@ interface GameReviewProps {
   username?: string;
   onSelectMovePly: (ply: number) => void;
   onRetryMove: (ply: number, betterMove: string) => void;
+  onAskCoach?: (ply: number) => void;
   onReviewLoaded?: (data: GameReviewData) => void;
   activePly?: number;
   platform?: ChessPlatform;
@@ -167,6 +168,7 @@ export function GameReview({
   username = 'Игрок',
   onSelectMovePly,
   onRetryMove,
+  onAskCoach,
   onReviewLoaded,
   activePly,
   platform = 'lichess',
@@ -499,6 +501,18 @@ export function GameReview({
                       </div>
 
                       <div className="flex items-center gap-2">
+                        {onAskCoach && (
+                          <button
+                            type="button"
+                            onClick={() => onAskCoach(item.ply)}
+                            className="text-xs px-2.5 py-1 rounded-lg border transition-all flex items-center gap-1.5 font-medium cursor-pointer touch-manipulation bg-[#fbbf24]/15 hover:bg-[#fbbf24]/25 text-[#fbbf24] border-[#fbbf24]/40"
+                            title="Открыть чат с тренером для этого хода"
+                          >
+                            <Sparkles className="w-3 h-3" />
+                            <span>Чат с тренером</span>
+                          </button>
+                        )}
+
                         {/* Retry Button */}
                         <button
                           type="button"

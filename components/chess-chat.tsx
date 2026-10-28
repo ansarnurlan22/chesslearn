@@ -1,11 +1,15 @@
 'use client';
 
 import { ChessCheeseIcon } from '@/components/logo';
+import { CLASSIFICATION_META } from '@/lib/chess-classifier';
 import type { ChessPlatform } from '@/lib/api/types';
+import type { MoveClassificationType } from '@/types/review';
 import {
   AlertCircle,
   Bot,
   CornerDownLeft,
+  HelpCircle,
+  Lightbulb,
   Loader2,
   RotateCcw,
   SendHorizontal,
@@ -20,6 +24,21 @@ export interface ChatMessage {
   text: string;
   fen?: string;
   moveNumber?: number;
+  activeMoveSan?: string;
+}
+
+export interface ActiveMoveContext {
+  ply: number;
+  moveNumber: number;
+  san: string;
+  color: 'white' | 'black';
+  classification: string;
+  type?: MoveClassificationType;
+  glyph?: string;
+  score?: string;
+  bestMove?: string;
+  pvLine?: string;
+  comment?: string;
 }
 
 export interface ChessChatProps {
@@ -29,9 +48,10 @@ export interface ChessChatProps {
   pgn?: string;
   platform?: ChessPlatform;
   className?: string;
+  activeMove?: ActiveMoveContext | null;
 }
 
-const QUICK_QUESTIONS = [
+const GENERAL_QUESTIONS = [
   'В чем идея этой позиции?',
   'Какая главная угроза соперника?',
   'Какой здесь план игры?',
@@ -44,13 +64,14 @@ export function ChessChat({
   pgn,
   platform = 'lichess',
   className = '',
+  activeMove,
 }: ChessChatProps) {
   const isChessCom = platform === 'chesscom';
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: 'welcome',
       role: 'assistant',
-      text: 'Приветствую за доской! Я твой гроссмейстер-наставник ChessCheese Bot. Задавай любые вопросы по текущей позиции на доске или используй быстрые кнопки ниже!',
+      text: 'Приветствую за доской! Я твой гроссмейстер-наставник ChessCheese Bot. Все расчеты позиций ведутся на движке Stockfish. Выбери любой ход на доске или задай вопрос!',
     },
   ]);
   const [inputValue, setInputValue] = useState('');
@@ -80,6 +101,7 @@ export function ChessChat({
       text: trimmed,
       fen: currentFen,
       moveNumber,
+      activeMoveSan: activeMove?.san,
     };
 
     const newHistory = [...messages, userMsg];
@@ -99,8 +121,14 @@ export function ChessChat({
           })),
           currentFen,
           pgn,
-          moveNumber,
+          moveNumber: activeMove?.moveNumber ?? moveNumber,
           turn,
+          // Stockfish facts for hybrid analysis
+          score: activeMove?.score,
+          playerMove: activeMove?.san,
+          bestMove: activeMove?.bestMove || activeMove?.san,
+          pvLine: activeMove?.pvLine,
+          classification: activeMove?.classification,
         }),
       });
 
@@ -115,7 +143,8 @@ export function ChessChat({
         role: 'assistant',
         text: data.reply || 'Не удалось сформировать ответ.',
         fen: currentFen,
-        moveNumber,
+        moveNumber: activeMove?.moveNumber ?? moveNumber,
+        activeMoveSan: activeMove?.san,
       };
 
       setMessages((prev) => [...prev, botMsg]);
@@ -143,6 +172,19 @@ export function ChessChat({
     setErrorMessage(null);
   };
 
+  // Determine active classification metadata
+  const moveType: MoveClassificationType = activeMove?.type || 'good';
+  const meta = CLASSIFICATION_META[moveType] || CLASSIFICATION_META.good;
+
+  // Contextual quick questions
+  const contextualQuestions = activeMove && activeMove.san
+    ? [
+        `Почему это ${activeMove.classification}?`,
+        'Какое опровержение нашел Stockfish?',
+        `Что было бы при ходе ${activeMove.bestMove || activeMove.san}?`,
+      ]
+    : GENERAL_QUESTIONS;
+
   return (
     <div
       className={`w-full flex flex-col rounded-3xl border shadow-lg overflow-hidden transition-all duration-300 ${
@@ -151,10 +193,10 @@ export function ChessChat({
           : 'bg-[#24221f] border-[#33312c]'
       } ${className}`}
     >
-      {/* Header */}
+      {/* Top Header */}
       <div
         className={`px-5 py-4 border-b flex items-center justify-between gap-3 ${
-          isChessCom ? 'border-[#302e2b] bg-[#191815]/80' : 'border-[#33312c] bg-[#1c1a17]/80'
+          isChessCom ? 'border-[#302e2b] bg-[#191815]/90' : 'border-[#33312c] bg-[#1c1a17]/90'
         } backdrop-blur-sm`}
       >
         <div className="flex items-center gap-3">
@@ -171,13 +213,14 @@ export function ChessChat({
                 ChessCheese Bot
               </h3>
               <span className="text-[10px] font-black tracking-wider uppercase px-2 py-0.5 rounded bg-[#fbbf24]/20 border border-[#fbbf24]/40 text-[#fbbf24]">
-                AI-Гроссмейстер
+                Stockfish + Gemini
               </span>
             </div>
             <div className="flex items-center gap-2 text-xs text-zinc-400 mt-0.5">
               <span className="inline-block w-1.5 h-1.5 rounded-full bg-[#fbbf24] animate-pulse" />
               <span>
-                Ход {moveNumber > 0 ? moveNumber : 1} ({turn === 'w' ? 'Ход белых' : 'Ход чёрных'})
+                Ход {activeMove?.moveNumber ?? (moveNumber > 0 ? moveNumber : 1)} (
+                {turn === 'w' ? 'Ход белых' : 'Ход чёрных'})
               </span>
             </div>
           </div>
@@ -197,44 +240,133 @@ export function ChessChat({
         </button>
       </div>
 
+      {/* Synchronized Move Header Card (Chess.com Style) */}
+      {activeMove && activeMove.san && (
+        <div
+          className={`mx-4 mt-3 p-3.5 rounded-2xl border ${meta.bgClass} ${meta.borderClass} shadow-sm flex flex-col gap-2.5 transition-all animate-in fade-in slide-in-from-top-1 duration-200`}
+        >
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span
+                className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold border ${meta.borderClass} ${meta.colorClass} bg-black/50`}
+              >
+                <span>{meta.glyph}</span>
+                <span>{activeMove.classification}</span>
+              </span>
+
+              <span className="text-xs sm:text-sm font-bold text-white font-mono">
+                Ход {activeMove.moveNumber}: {activeMove.san} — {activeMove.classification} (Оценка: {activeMove.score || '0.0'})
+              </span>
+            </div>
+
+            {activeMove.bestMove && activeMove.bestMove !== activeMove.san && (
+              <div className="flex items-center gap-1.5 text-xs">
+                <span className="text-zinc-400">Лучший ход:</span>
+                <strong
+                  className={`font-mono px-2 py-0.5 rounded border font-bold ${
+                    isChessCom
+                      ? 'bg-[#81b64c]/20 text-[#81b64c] border-[#81b64c]/40'
+                      : 'bg-[#3692e7]/20 text-[#3692e7] border-[#3692e7]/40'
+                  }`}
+                >
+                  {activeMove.bestMove}
+                </strong>
+              </div>
+            )}
+          </div>
+
+          {/* 3 Contextual Quick Action Buttons directly under the Card */}
+          <div className="flex items-center gap-1.5 flex-wrap pt-2 border-t border-white/10">
+            <button
+              type="button"
+              onClick={() => handleSendMessage(`Почему это ${activeMove.classification}?`)}
+              disabled={isLoading}
+              className={`text-xs px-3 py-1.5 rounded-xl border font-medium transition-all cursor-pointer touch-manipulation disabled:opacity-50 ${
+                isChessCom
+                  ? 'bg-[#191815] hover:bg-[#262421] text-zinc-200 border-[#302e2b] hover:border-[#fbbf24]/50 hover:text-white'
+                  : 'bg-[#1c1a17] hover:bg-[#292723] text-zinc-200 border-[#33312c] hover:border-[#fbbf24]/50 hover:text-white'
+              } active:scale-95`}
+            >
+              «Почему это {activeMove.classification}?»
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleSendMessage('Какое опровержение нашел Stockfish?')}
+              disabled={isLoading}
+              className={`text-xs px-3 py-1.5 rounded-xl border font-medium transition-all cursor-pointer touch-manipulation disabled:opacity-50 ${
+                isChessCom
+                  ? 'bg-[#191815] hover:bg-[#262421] text-zinc-200 border-[#302e2b] hover:border-[#fbbf24]/50 hover:text-white'
+                  : 'bg-[#1c1a17] hover:bg-[#292723] text-zinc-200 border-[#33312c] hover:border-[#fbbf24]/50 hover:text-white'
+              } active:scale-95`}
+            >
+              «Какое опровержение нашел Stockfish?»
+            </button>
+
+            <button
+              type="button"
+              onClick={() =>
+                handleSendMessage(
+                  `Что было бы при ходе ${activeMove.bestMove || activeMove.san}?`,
+                )
+              }
+              disabled={isLoading}
+              className={`text-xs px-3 py-1.5 rounded-xl border font-medium transition-all cursor-pointer touch-manipulation disabled:opacity-50 ${
+                isChessCom
+                  ? 'bg-[#191815] hover:bg-[#262421] text-zinc-200 border-[#302e2b] hover:border-[#fbbf24]/50 hover:text-white'
+                  : 'bg-[#1c1a17] hover:bg-[#292723] text-zinc-200 border-[#33312c] hover:border-[#fbbf24]/50 hover:text-white'
+              } active:scale-95`}
+            >
+              «Что было бы при ходе {activeMove.bestMove || activeMove.san}?»
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Messages Scroll Area */}
-      <div className="p-4 sm:p-5 flex-1 max-h-[380px] overflow-y-auto flex flex-col gap-3.5 scrollbar-thin">
+      <div className="flex-1 min-h-[300px] max-h-[460px] overflow-y-auto p-4 sm:p-5 flex flex-col gap-3.5">
         {messages.map((msg) => {
           const isUser = msg.role === 'user';
           return (
             <div
               key={msg.id}
-              className={`flex gap-3 items-start ${isUser ? 'flex-row-reverse' : 'flex-row'}`}
+              className={`flex gap-3 items-start animate-in fade-in duration-200 ${
+                isUser ? 'flex-row-reverse' : 'flex-row'
+              }`}
             >
               {/* Avatar */}
               <div
-                className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 text-xs font-bold border shadow-sm ${
+                className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${
                   isUser
-                    ? 'bg-zinc-800 border-zinc-700 text-zinc-200'
-                    : 'bg-[#fbbf24]/15 border-[#fbbf24]/40 text-[#fbbf24]'
+                    ? 'bg-zinc-700 text-zinc-200'
+                    : 'bg-[#fbbf24]/15 border border-[#fbbf24]/40 text-[#fbbf24]'
                 }`}
               >
-                {isUser ? <User className="w-3.5 h-3.5" /> : <Bot className="w-4 h-4" />}
+                {isUser ? (
+                  <User className="w-3.5 h-3.5" />
+                ) : (
+                  <Bot className="w-3.5 h-3.5" />
+                )}
               </div>
 
               {/* Message Bubble */}
               <div
                 className={`max-w-[85%] sm:max-w-[80%] rounded-2xl px-4 py-3 text-xs sm:text-sm leading-relaxed ${
                   isUser
-                    ? 'bg-[#f59e0b] text-zinc-950 font-medium rounded-tr-sm shadow-md'
-                    : `${
-                        isChessCom
-                          ? 'bg-[#191815] border-[#302e2b] text-zinc-200'
-                          : 'bg-[#1c1a17] border-[#33312c] text-zinc-200'
-                      } border rounded-tl-sm shadow-sm`
+                    ? isChessCom
+                      ? 'bg-[#81b64c] text-white rounded-tr-sm font-medium'
+                      : 'bg-[#3692e7] text-white rounded-tr-sm font-medium'
+                    : isChessCom
+                      ? 'bg-[#191815] border border-[#302e2b] text-zinc-200 rounded-tl-sm'
+                      : 'bg-[#1c1a17] border border-[#33312c] text-zinc-200 rounded-tl-sm'
                 }`}
               >
-                <div className="whitespace-pre-wrap">{msg.text}</div>
-                {msg.moveNumber !== undefined && msg.moveNumber > 0 && !isUser && (
-                  <div className="mt-2 pt-1.5 border-t border-white/10 text-[10px] text-zinc-400 font-mono flex items-center justify-between">
-                    <span>Позиция на ход {msg.moveNumber}</span>
+                {msg.activeMoveSan && !isUser && (
+                  <div className="text-[10px] text-[#fbbf24] font-mono font-semibold mb-1 pb-1 border-b border-white/5 flex items-center gap-1">
+                    <Sparkles className="w-3 h-3" /> Разбор хода {msg.activeMoveSan}
                   </div>
                 )}
+                <div className="whitespace-pre-wrap">{msg.text}</div>
               </div>
             </div>
           );
@@ -254,7 +386,7 @@ export function ChessChat({
               }`}
             >
               <Loader2 className="w-4 h-4 animate-spin text-[#fbbf24]" />
-              <span>Гроссмейстер анализирует позицию...</span>
+              <span>Гроссмейстер анализирует позицию со Stockfish...</span>
             </div>
           </div>
         )}
@@ -273,33 +405,35 @@ export function ChessChat({
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Quick Action Buttons */}
-      <div
-        className={`px-4 py-2.5 border-t flex items-center gap-2 overflow-x-auto scrollbar-none ${
-          isChessCom ? 'border-[#302e2b] bg-[#191815]/50' : 'border-[#33312c] bg-[#1c1a17]/50'
-        }`}
-      >
-        <span className="text-[11px] text-zinc-500 font-medium shrink-0 flex items-center gap-1">
-          <Sparkles className="w-3 h-3 text-[#fbbf24]" /> Быстрые вопросы:
-        </span>
-        <div className="flex items-center gap-1.5 flex-nowrap">
-          {QUICK_QUESTIONS.map((q) => (
-            <button
-              key={q}
-              type="button"
-              onClick={() => handleSendMessage(q)}
-              disabled={isLoading}
-              className={`text-xs px-3 py-1.5 rounded-full border whitespace-nowrap font-medium transition-all cursor-pointer touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed ${
-                isChessCom
-                  ? 'bg-[#211f1c] hover:bg-[#262421] text-zinc-300 border-[#302e2b] hover:border-[#fbbf24]/50'
-                  : 'bg-[#24221f] hover:bg-[#292723] text-zinc-300 border-[#33312c] hover:border-[#fbbf24]/50'
-              } hover:text-[#fbbf24] active:scale-95`}
-            >
-              {q}
-            </button>
-          ))}
+      {/* General Quick Action Buttons (if no active move selected) */}
+      {(!activeMove || !activeMove.san) && (
+        <div
+          className={`px-4 py-2.5 border-t flex items-center gap-2 overflow-x-auto scrollbar-none ${
+            isChessCom ? 'border-[#302e2b] bg-[#191815]/50' : 'border-[#33312c] bg-[#1c1a17]/50'
+          }`}
+        >
+          <span className="text-[11px] text-zinc-500 font-medium shrink-0 flex items-center gap-1">
+            <Sparkles className="w-3 h-3 text-[#fbbf24]" /> Быстрые вопросы:
+          </span>
+          <div className="flex items-center gap-1.5 flex-nowrap">
+            {contextualQuestions.map((q) => (
+              <button
+                key={q}
+                type="button"
+                onClick={() => handleSendMessage(q)}
+                disabled={isLoading}
+                className={`text-xs px-3 py-1.5 rounded-full border whitespace-nowrap font-medium transition-all cursor-pointer touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed ${
+                  isChessCom
+                    ? 'bg-[#211f1c] hover:bg-[#262421] text-zinc-300 border-[#302e2b] hover:border-[#fbbf24]/50'
+                    : 'bg-[#24221f] hover:bg-[#292723] text-zinc-300 border-[#33312c] hover:border-[#fbbf24]/50'
+                } hover:text-[#fbbf24] active:scale-95`}
+              >
+                {q}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Input Form */}
       <form
@@ -313,7 +447,7 @@ export function ChessChat({
             type="text"
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
-            placeholder="Спроси гроссмейстера о позиции, плане или угрозе..."
+            placeholder="Спроси тренера о ходе, опровержении Stockfish или плане..."
             disabled={isLoading}
             className={`w-full text-xs sm:text-sm text-white placeholder:text-zinc-500 rounded-xl px-4 py-3 outline-none border transition-all ${
               isChessCom

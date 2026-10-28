@@ -10,6 +10,11 @@ interface ChatRequestBody {
   pgn?: string;
   moveNumber?: number;
   turn?: string;
+  score?: string;
+  playerMove?: string;
+  bestMove?: string;
+  pvLine?: string;
+  classification?: string;
 }
 
 const GRANDMASTER_SYSTEM_PROMPT = `Ты живой шахматный гроссмейстер-наставник ChessCheese Bot.
@@ -21,10 +26,9 @@ const GRANDMASTER_SYSTEM_PROMPT = `Ты живой шахматный гросс
 
 // Prioritized list of models supported by the Gemini API
 const CANDIDATE_MODELS = [
-  'gemini-3.5-flash',
-  'gemini-3.8-flash',
   'gemini-2.0-flash',
   'gemini-1.5-flash',
+  'gemini-2.5-flash',
 ];
 
 export async function POST(req: NextRequest) {
@@ -56,13 +60,44 @@ export async function POST(req: NextRequest) {
     const turn = body.turn === 'b' || body.turn === 'black' ? 'Чёрные' : 'Белые';
     const pgn = body.pgn ? `PGN партии:\n${body.pgn.slice(0, 1500)}` : '';
 
-    // Build contextual prompt
-    const contextPrefix = `[ТЕКУЩАЯ ШАХМАТНАЯ ПОЗИЦИЯ]
+    const hasStockfishFacts = Boolean(
+      body.playerMove || body.bestMove || body.classification || body.score,
+    );
+
+    let systemPrompt = GRANDMASTER_SYSTEM_PROMPT;
+    let contextPrefix = '';
+
+    if (hasStockfishFacts) {
+      const score = body.score || '0.0';
+      const playerMove = body.playerMove || 'последний ход';
+      const bestMove = body.bestMove || playerMove;
+      const pvLine = body.pvLine || '-';
+      const classification = body.classification || 'Хороший';
+
+      systemPrompt = `Ты шахматный наставник ChessCheese. Все расчеты УЖЕ сделаны движком Stockfish:
+- Оценка позиции: ${score}
+- Игрок сыграл: ${playerMove}
+- Лучший ход движка: ${bestMove}
+- Опровержение Stockfish (PV-линия): ${pvLine}
+- Статус хода: ${classification}
+Твоя задача — не считать позицию самому, а объяснить игроку простыми словами, почему ход ${bestMove} сильнее и какую угрозу нес ход ${playerMove} по линии ${pvLine}.
+Отвечай профессионально, дружелюбно, по-шахматному точно и с легким юмором.`;
+
+      contextPrefix = `[ДАННЫЕ STOCKFISH ДЛЯ АНАЛИЗА]
+- Позиция FEN: ${currentFen}
+- Ход ${moveNumber} (${turn})
+- Игрок сыграл: ${playerMove} (статус: ${classification})
+- Оценка позиции: ${score}
+- Рекомендация Stockfish: ${bestMove}
+- Опровержение / линия: ${pvLine}
+${pgn ? `${pgn}\n` : ''}`;
+    } else {
+      contextPrefix = `[ТЕКУЩАЯ ШАХМАТНАЯ ПОЗИЦИЯ]
 - FEN: ${currentFen}
 - Номер хода: ${moveNumber}
 - Чей ход: ${turn}
-${pgn ? `${pgn}\n` : ''}
-Внимательно оцени эту позицию и ответь на вопрос ученика:`;
+${pgn ? `${pgn}\n` : ''}`;
+    }
 
     // Prepare contents array for Gemini API
     const contents: Array<{
@@ -87,7 +122,7 @@ ${pgn ? `${pgn}\n` : ''}
       role: 'user',
       parts: [
         {
-          text: `${contextPrefix}\n\n${userMessage}`,
+          text: `${contextPrefix}\n\nВопрос ученика: ${userMessage}`,
         },
       ],
     });
@@ -100,50 +135,47 @@ ${pgn ? `${pgn}\n` : ''}
     for (const model of CANDIDATE_MODELS) {
       try {
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-
-        const res = await fetch(url, {
+        const response = await fetch(url, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+          },
           body: JSON.stringify({
             systemInstruction: {
-              parts: [{ text: GRANDMASTER_SYSTEM_PROMPT }],
+              parts: [{ text: systemPrompt }],
             },
             contents,
             generationConfig: {
-              temperature: 0.7,
+              temperature: 0.3,
               maxOutputTokens: 1024,
             },
           }),
-          signal: AbortSignal.timeout(15000),
         });
 
-        if (!res.ok) {
-          const errData = await res.json().catch(() => null);
-          lastError = errData?.error?.message || `HTTP ${res.status}: ${res.statusText}`;
-          // If model deprecated or high load, try next candidate
-          continue;
-        }
-
-        const data = await res.json();
-        const candidate = data.candidates?.[0];
-        const textPart = candidate?.content?.parts?.[0]?.text;
-
-        if (textPart) {
-          replyText = textPart;
-          chosenModel = model;
-          break;
+        if (response.ok) {
+          const data = await response.json();
+          const candidateText =
+            data.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (candidateText && candidateText.trim()) {
+            replyText = candidateText.trim();
+            chosenModel = model;
+            break;
+          }
+        } else {
+          const errData = await response.json().catch(() => ({}));
+          lastError =
+            errData.error?.message ||
+            `Ошибка вызова модели ${model} (${response.status})`;
         }
       } catch (err: unknown) {
-        if (err instanceof Error) {
-          lastError = err.message;
-        }
+        lastError = err instanceof Error ? err.message : String(err);
       }
     }
 
     if (!replyText) {
       return NextResponse.json(
         {
-          error: `Ошибка генерации ответа от Gemini API: ${lastError}`,
+          error: `Gemini API временно недоступен: ${lastError}`,
         },
         { status: 502 },
       );
@@ -152,10 +184,12 @@ ${pgn ? `${pgn}\n` : ''}
     return NextResponse.json({
       reply: replyText,
       model: chosenModel,
-      fen: currentFen,
     });
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Внутренняя ошибка сервера.';
-    return NextResponse.json({ error: message }, { status: 500 });
+    const message = err instanceof Error ? err.message : 'Неизвестная ошибка';
+    return NextResponse.json(
+      { error: `Внутренняя ошибка сервера: ${message}` },
+      { status: 500 },
+    );
   }
 }

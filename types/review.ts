@@ -19,6 +19,9 @@ export interface MoveAnalysis {
   glyph: string;
   comment: string;
   betterMove?: string;
+  score?: string;
+  pvLine?: string;
+  cpl?: number;
 }
 
 export interface MoveTypeSummary {
@@ -40,6 +43,8 @@ export interface CriticalMove {
   type: CriticalMoveType;
   comment: string;
   betterMove: string;
+  score?: string;
+  pvLine?: string;
 }
 
 export interface GameReviewData {
