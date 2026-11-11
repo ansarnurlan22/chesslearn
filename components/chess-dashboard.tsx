@@ -4,6 +4,8 @@ import { ChessChat, type ActiveMoveContext } from '@/components/chess-chat';
 import { ChessViewer } from '@/components/chess-viewer';
 import { GameReview } from '@/components/game-review';
 import { Logo } from '@/components/logo';
+import { StudentProfileModal } from '@/components/student-profile-modal';
+import { useAuth } from '@/hooks/use-auth';
 import type { ChessPlatform, UnifiedGame, UnifiedPlayerProfile } from '@/lib/api/types';
 import { CLASSIFICATION_META } from '@/lib/chess-classifier';
 import type { GameReviewData, MoveAnalysis } from '@/types/review';
@@ -51,9 +53,21 @@ export function ChessDashboard({
   error,
 }: ChessDashboardProps) {
   const router = useRouter();
+  const { user, profile: authProfile, signOut } = useAuth();
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [platform, setPlatform] = useState<ChessPlatform>(initialPlatform);
   const [usernameInput, setUsernameInput] = useState(initialUsername);
   const [isPending, startTransition] = useTransition();
+
+  // If user is logged in with a linked chess username and opened without ?u=, auto-load their profile
+  useEffect(() => {
+    if (!initialUsername && authProfile?.chess_username && !usernameInput) {
+      const targetPlatform = authProfile.chess_platform || platform;
+      setUsernameInput(authProfile.chess_username);
+      setPlatform(targetPlatform);
+      router.push(`/?u=${encodeURIComponent(authProfile.chess_username)}&p=${targetPlatform}`);
+    }
+  }, [initialUsername, authProfile?.chess_username, authProfile?.chess_platform]);
 
   const isChessCom = platform === 'chesscom';
 
@@ -209,13 +223,38 @@ export function ChessDashboard({
               <span>Для тренеров</span>
             </Link>
 
-            <Link
-              href="/auth"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#302e2b] bg-[#211f1c] hover:bg-[#262421] text-[#c3c2c1] hover:text-white font-medium transition-all"
-            >
-              <User className="w-3.5 h-3.5" />
-              <span>Войти</span>
-            </Link>
+            {user ? (
+              <button
+                type="button"
+                onClick={() => setIsProfileModalOpen(true)}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border ${
+                  authProfile?.role === 'trainer'
+                    ? 'border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300'
+                    : isChessCom
+                      ? 'border-[#81b64c]/40 bg-[#81b64c]/15 hover:bg-[#81b64c]/25 text-[#81b64c]'
+                      : 'border-[#3692e7]/40 bg-[#3692e7]/15 hover:bg-[#3692e7]/25 text-[#3692e7]'
+                } font-semibold transition-all cursor-pointer shadow-sm`}
+                title="Личный кабинет"
+              >
+                <div className="w-5 h-5 rounded-lg bg-current/20 flex items-center justify-center text-xs font-black">
+                  {authProfile?.full_name ? authProfile.full_name[0].toUpperCase() : 'U'}
+                </div>
+                <span className="truncate max-w-[100px] sm:max-w-[140px] text-white text-xs">
+                  {authProfile?.full_name || user.email?.split('@')[0]}
+                </span>
+                <span className="text-[10px] font-mono uppercase opacity-90 px-1.5 py-0.5 rounded bg-black/40 border border-current/20 hidden sm:inline-block">
+                  {authProfile?.role === 'trainer' ? 'Тренер' : 'Ученик'}
+                </span>
+              </button>
+            ) : (
+              <Link
+                href="/auth"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#302e2b] bg-[#211f1c] hover:bg-[#262421] text-[#c3c2c1] hover:text-white font-medium transition-all"
+              >
+                <User className="w-3.5 h-3.5" />
+                <span>Войти</span>
+              </Link>
+            )}
 
             <div className="w-px h-5 bg-[#302e2b] hidden sm:block" />
 
@@ -875,6 +914,13 @@ export function ChessDashboard({
           </div>
         </div>
       </footer>
+      {/* Student Profile Modal */}
+      <StudentProfileModal
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+        onSignOut={signOut}
+        platformTheme={platform}
+      />
     </div>
   );
 }

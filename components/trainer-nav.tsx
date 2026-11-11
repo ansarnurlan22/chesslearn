@@ -2,7 +2,7 @@
 
 import { Logo } from '@/components/logo';
 import { useAuth } from '@/hooks/use-auth';
-import { GraduationCap, LogOut, ArrowLeft, ExternalLink, Sparkles } from 'lucide-react';
+import { GraduationCap, LogOut, ArrowLeft, ExternalLink, Sparkles, User } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
@@ -57,6 +57,15 @@ export function TrainerNav() {
                   {user.email}
                 </span>
               </div>
+
+              <Link
+                href="/profile"
+                className="flex items-center gap-1.5 text-xs text-zinc-300 hover:text-white px-2.5 py-1.5 rounded-lg border border-[#302e2b] bg-[#211f1c] hover:bg-[#262421] transition-all"
+                title="Мой профиль"
+              >
+                <User className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Профиль</span>
+              </Link>
 
               <button
                 type="button"
