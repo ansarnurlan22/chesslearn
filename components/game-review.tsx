@@ -24,7 +24,7 @@ import {
   Star,
   XCircle,
 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 interface GameReviewProps {
   pgn: string;
@@ -211,6 +211,13 @@ export function GameReview({
     }
   };
 
+  // Automatically analyze the game with Stockfish when loaded
+  useEffect(() => {
+    if (!review && !isLoading && pgn && pgn.trim()) {
+      startAnalysis();
+    }
+  }, [pgn]);
+
   const userAccuracy =
     playerColor === 'white'
       ? review?.accuracy.white ?? 0
@@ -308,8 +315,10 @@ export function GameReview({
             <Sparkles className={`w-5 h-5 ${isChessCom ? 'text-[#81b64c]' : 'text-[#3692e7]'} absolute inset-0 m-auto`} />
           </div>
           <div className="text-center">
-            <p className="text-sm font-semibold text-white">Нейросеть анализирует партию...</p>
-            <p className={`text-xs ${isChessCom ? 'text-[#8b8987]' : 'text-[#7e7b76]'} mt-1`}>Оценка точности, поиск зевков и классификация всех ходов</p>
+            <p className="text-sm font-semibold text-white">Stockfish анализирует партию...</p>
+            <p className={`text-xs ${isChessCom ? 'text-[#8b8987]' : 'text-[#7e7b76]'} mt-1`}>
+              Расчёт точности ходов, дебютной теории, потерь CPL и тактических альтернатив
+            </p>
           </div>
         </div>
       )}

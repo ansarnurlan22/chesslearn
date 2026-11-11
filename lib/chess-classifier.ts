@@ -5,6 +5,8 @@ import type {
   MoveTypeSummary,
 } from '@/types/review';
 import { Chess } from 'chess.js';
+import { isOpeningBookMove } from '@/lib/engine/opening-book';
+import { parsePgnEvaluations } from '@/lib/eval-parser';
 
 export const GLYPH_MAP: Record<MoveClassificationType, string> = {
   brilliant: '!!',
@@ -79,12 +81,6 @@ export const CLASSIFICATION_META: Record<
   },
 };
 
-const STANDARD_BOOK_MOVES = new Set([
-  'e4', 'e5', 'd4', 'd5', 'c4', 'c5', 'Nf3', 'Nc6', 'Nf6', 'Nc3',
-  'g3', 'g6', 'Bg2', 'Bg7', 'O-O', 'd6', 'e6', 'c6', 'b3', 'Bb7',
-  'Bb2', 'Bd3', 'Bd6', 'Be2', 'Be7', 'Re1', 'Qc2', 'Qd2', 'Nbd2', 'Nbd7',
-]);
-
 function createEmptySummary(): MoveTypeSummary {
   return {
     book: 0,
@@ -98,9 +94,18 @@ function createEmptySummary(): MoveTypeSummary {
   };
 }
 
+function centipawnsToWinPercent(cp: number): number {
+  const clampedCp = Math.max(-2000, Math.min(2000, cp));
+  const winRate = 50 + 50 * (2 / (1 + Math.exp(-0.00368208 * clampedCp)) - 1);
+  return Math.max(0, Math.min(100, winRate));
+}
+
 /**
- * Classifies all moves of a game into Chess.com-style statuses
- * merging AI critical moments if provided.
+ * Classifies all moves of a game into Chess.com-style statuses.
+ * Incorporates:
+ * 1. Embedded PGN evaluations (from Lichess/Chess.com) for real centipawn accuracy.
+ * 2. Opening book tree to guarantee 'book' status with 0 CPL for theoretical moves.
+ * 3. AI / Stockfish critical moments when provided.
  */
 export function classifyGameMoves(
   pgn: string,
@@ -119,10 +124,14 @@ export function classifyGameMoves(
   }
 
   const history = chess.history({ verbose: true });
+  const historySan = history.map((m) => m.san);
   const criticalMap = new Map<number, CriticalMove>();
   for (const cm of criticalMoves) {
     criticalMap.set(cm.ply, cm);
   }
+
+  const embeddedEvals = parsePgnEvaluations(pgn);
+  const hasEmbedded = embeddedEvals.size >= Math.floor(history.length * 0.5);
 
   const moves: MoveAnalysis[] = [];
   const stats = {
@@ -134,57 +143,102 @@ export function classifyGameMoves(
     const mv = history[i];
     const ply = i + 1;
     const color: 'white' | 'black' = i % 2 === 0 ? 'white' : 'black';
+    const turnChar: 'w' | 'b' = color === 'white' ? 'w' : 'b';
     const moveNumber = Math.ceil(ply / 2);
 
     const aiMatch = criticalMap.get(ply);
 
     let type: MoveClassificationType = 'good';
-    let comment = 'Надёжный позиционный ход, развивающий фигуры и удерживающий баланс.';
+    let comment = 'Надёжный ход в партии.';
     let betterMove: string | undefined = undefined;
+    let scoreStr: string | undefined = undefined;
+    let pvLine: string | undefined = undefined;
+    let cpl = 0;
 
+    // 1. Check AI / Engine match first
     if (aiMatch) {
       type = aiMatch.type;
       comment = aiMatch.comment;
       betterMove = aiMatch.betterMove;
+      scoreStr = aiMatch.score;
+      pvLine = aiMatch.pvLine;
     } else {
-      // Heuristic rules for remaining plies
-      if (ply <= 8 || (ply <= 12 && STANDARD_BOOK_MOVES.has(mv.san))) {
+      // 2. Check Opening Book
+      const bookCheck = isOpeningBookMove(historySan, i);
+      if (bookCheck.isBook) {
         type = 'book';
-        comment = 'Дебютная теория. Ход строго соответствует гроссмейстерским книжным базам.';
-      } else if (mv.san.includes('#')) {
-        type = 'great';
-        comment = 'Победный удар! Ход завершает партию неотразимым матом.';
-      } else if (mv.san.includes('+')) {
-        type = 'best';
-        comment = 'Активный форсированный шах, вынуждающий соперника перейти к защите.';
-      } else if (mv.captured && (mv.captured === 'q' || mv.captured === 'r')) {
-        type = 'great';
-        comment = 'Точное взятие тяжелой фигуры, закрепляющее существенный перевес.';
-      } else if (mv.captured) {
-        type = 'best';
-        comment = 'Грамотный размен материала, упрощающий реализацию плана.';
-      } else if (mv.san === 'O-O' || mv.san === 'O-O-O') {
-        type = 'best';
-        comment = 'Рокировка обеспечивает безопасность короля и вводит ладью в игру.';
-      } else if (i % 5 === 0) {
-        type = 'best';
-        comment = 'Сильнейший ход движка. Точное позиционное решение.';
-      } else if (i % 7 === 0) {
-        type = 'great';
-        comment = 'Отличный тактический план, улучшающий гармонию фигур.';
+        comment = bookCheck.openingName
+          ? `Дебютная теория: ${bookCheck.openingName}. Ход строго соответствует гроссмейстерским базам.`
+          : 'Дебютная теория. Точный теоретический ход развития фигур.';
+        scoreStr = '+0.2';
+        cpl = 0;
+      } else if (hasEmbedded) {
+        // 3. Mathematical classification using embedded evaluations in PGN
+        const posBefore = i === 0 ? null : embeddedEvals.get(i);
+        const posAfter = embeddedEvals.get(ply);
+
+        let beforeCp = 20;
+        let afterCp = 20;
+
+        if (posBefore) {
+          beforeCp = posBefore.mate !== undefined
+            ? (posBefore.mate > 0 ? 10000 : -10000)
+            : (typeof posBefore.cp === 'number' ? posBefore.cp : Math.round(posBefore.score * 100));
+        }
+        if (posAfter) {
+          afterCp = posAfter.mate !== undefined
+            ? (posAfter.mate > 0 ? 10000 : -10000)
+            : (typeof posAfter.cp === 'number' ? posAfter.cp : Math.round(posAfter.score * 100));
+        }
+
+        const playerBefore = turnChar === 'w' ? beforeCp : -beforeCp;
+        const playerAfter = turnChar === 'w' ? afterCp : -afterCp;
+
+        cpl = Math.max(0, playerBefore - playerAfter);
+        const winBefore = centipawnsToWinPercent(playerBefore);
+        const winAfter = centipawnsToWinPercent(playerAfter);
+        const winDelta = Math.max(0, winBefore - winAfter);
+
+        if (winDelta <= 1.0 && cpl <= 10) {
+          type = 'best';
+          comment = 'Сильнейший ход движка. Точное позиционное решение.';
+        } else if (winDelta <= 2.5 && cpl <= 30) {
+          type = 'great';
+          comment = `Отличный ход! Потеря составила всего ${cpl} cp.`;
+        } else if (winDelta <= 5.0 && cpl <= 55) {
+          type = 'good';
+          comment = `Хороший, надёжный ход (потеря ${cpl} cp).`;
+        } else if (winDelta <= 11.0 && cpl <= 110) {
+          type = 'inaccuracy';
+          comment = `Неточность (потеря ${cpl} cp). Были более активные продолжения.`;
+        } else if (winDelta <= 22.0 && cpl <= 230) {
+          type = 'mistake';
+          comment = `Ощутимая ошибка (потеря ${cpl} cp). Позиция ухудшается.`;
+        } else {
+          type = 'blunder';
+          comment = `Серьёзный зевок (потеря ${cpl} cp)! Ход приводит к потере преимущества.`;
+        }
+
+        const pawns = (afterCp / 100).toFixed(1);
+        scoreStr = afterCp > 0 ? `+${pawns}` : `${pawns}`;
       } else {
-        type = 'good';
-        comment = 'Хороший ход. Фигуры сохраняют координацию и контроль над ключевыми полями.';
+        // 4. Default fallback when no engine analysis is loaded yet
+        if (mv.san.includes('#')) {
+          type = 'great';
+          comment = 'Победный удар! Ход завершает партию неотразимым матом.';
+        } else {
+          type = 'good';
+          comment = 'Ход в партии. Запустите глубокий разбор Stockfish для детальной оценки.';
+        }
       }
     }
 
     const glyph = GLYPH_MAP[type] || '';
 
-    // Increment stats
     if (color === 'white') {
-      stats.white[type] = (stats.white[type] || 0) + 1;
+      stats.white[type]++;
     } else {
-      stats.black[type] = (stats.black[type] || 0) + 1;
+      stats.black[type]++;
     }
 
     moves.push({
@@ -196,6 +250,9 @@ export function classifyGameMoves(
       glyph,
       comment,
       betterMove,
+      score: scoreStr,
+      pvLine,
+      cpl,
     });
   }
 

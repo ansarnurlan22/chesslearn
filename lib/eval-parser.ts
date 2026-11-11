@@ -1,7 +1,9 @@
 import { Chess } from 'chess.js';
 
 export interface PositionEvaluation {
-  score: number;
+  score: number; // In pawns from White's perspective (+1.8 or -0.5)
+  cp?: number; // In centipawns from White's perspective (+180 or -50)
+  mate?: number; // Moves to mate from White's perspective (+2 for white mate, -3 for black mate)
   text: string;
   isCheckmate: boolean;
   isEngine: boolean;
@@ -10,23 +12,21 @@ export interface PositionEvaluation {
 /**
  * Parses embedded engine evaluations from PGN comments.
  * Formats:
- * { [%eval +1.8] } or { [%eval -0.45] } or { [%eval #2] } or { [%eval #-3] }
+ * { [%eval +1.8] } or { [%eval -0.45] } or { [%eval #2] } or { [%eval #-3] } or { [%eval 1.4,12] }
  */
 export function parsePgnEvaluations(pgn: string): Map<number, PositionEvaluation> {
   const evalMap = new Map<number, PositionEvaluation>();
   if (!pgn || !pgn.trim()) return evalMap;
 
-  // Match comments like { ... [%eval ...] ... }
-  // or standalone [%eval ...]
-  const evalRegex = /\[%eval\s+([#+-]?\d+(?:\.\d+)?)\]/g;
+  // Match [%eval ...] with optional depth after comma
+  const evalRegex = /\[%eval\s+([#+-]?\d+(?:\.\d+)?)(?:,\d+)?\]/g;
+  // Match Chess.com style eval comment: { +0.45/20 } or { #-2/18 }
+  const chessComEvalRegex = /\{(?:\s*\[%eval[^\]]+\]\s*)*\s*([+-]?\d+\.\d+|#[+-]?\d+)\/\d+/g;
 
-  // We walk through the moves using regex or string splitting
-  // In PGN, move tokens are preceded or followed by comments: e.g. "1. e4 { [%eval 0.2] } e5 { [%eval 0.3] }"
   // Clean PGN headers first
   const body = pgn.replace(/\[[A-Za-z]+\s+"[^"]*"\]/g, ' ');
 
   // Tokenize by moves and comments
-  // A regex matching: move number (optional), move SAN, comment block
   const tokenRegex = /(?:(\d+)\.\s*)?([NBKRQ]?[a-h]?[1-8]?x?[a-h][1-8](?:=[NBRQ])?[\+#]?|O-O-O|O-O)\s*(?:\{([^}]*)\})?/g;
 
   let match: RegExpExecArray | null;
@@ -41,26 +41,60 @@ export function parsePgnEvaluations(pgn: string): Map<number, PositionEvaluation
       if (evalMatch && evalMatch[1]) {
         const rawVal = evalMatch[1];
         if (rawVal.startsWith('#')) {
-          // Mate in X
           const mateIn = parseInt(rawVal.substring(1), 10);
           const isWhiteWinning = mateIn > 0;
           evalMap.set(ply, {
             score: isWhiteWinning ? 99 : -99,
-            text: `M${Math.abs(mateIn)}`,
+            cp: isWhiteWinning ? 10000 : -10000,
+            mate: mateIn,
+            text: mateIn > 0 ? `+M${Math.abs(mateIn)}` : `-M${Math.abs(mateIn)}`,
             isCheckmate: true,
             isEngine: true,
           });
         } else {
-          const score = parseFloat(rawVal);
-          if (!isNaN(score)) {
-            const rounded = Math.round(score * 10) / 10;
+          const scorePawns = parseFloat(rawVal);
+          if (!isNaN(scorePawns)) {
+            const rounded = Math.round(scorePawns * 10) / 10;
+            const cp = Math.round(scorePawns * 100);
             const sign = rounded > 0 ? `+${rounded.toFixed(1)}` : `${rounded.toFixed(1)}`;
             evalMap.set(ply, {
               score: rounded,
+              cp,
               text: rounded === 0 ? '0.0' : sign,
               isCheckmate: false,
               isEngine: true,
             });
+          }
+        }
+      } else {
+        chessComEvalRegex.lastIndex = 0;
+        const ccMatch = chessComEvalRegex.exec(`{${comment}}`);
+        if (ccMatch && ccMatch[1]) {
+          const rawVal = ccMatch[1];
+          if (rawVal.startsWith('#')) {
+            const mateIn = parseInt(rawVal.substring(1), 10);
+            evalMap.set(ply, {
+              score: mateIn > 0 ? 99 : -99,
+              cp: mateIn > 0 ? 10000 : -10000,
+              mate: mateIn,
+              text: mateIn > 0 ? `+M${Math.abs(mateIn)}` : `-M${Math.abs(mateIn)}`,
+              isCheckmate: true,
+              isEngine: true,
+            });
+          } else {
+            const scorePawns = parseFloat(rawVal);
+            if (!isNaN(scorePawns)) {
+              const rounded = Math.round(scorePawns * 10) / 10;
+              const cp = Math.round(scorePawns * 100);
+              const sign = rounded > 0 ? `+${rounded.toFixed(1)}` : `${rounded.toFixed(1)}`;
+              evalMap.set(ply, {
+                score: rounded,
+                cp,
+                text: rounded === 0 ? '0.0' : sign,
+                isCheckmate: false,
+                isEngine: true,
+              });
+            }
           }
         }
       }

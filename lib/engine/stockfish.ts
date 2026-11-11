@@ -1,8 +1,9 @@
 import { Chess } from 'chess.js';
+import { evaluatePositionHeuristic } from '@/lib/eval-parser';
 
 export interface ScoreInfo {
   type: 'cp' | 'mate';
-  value: number; // Centipawns (from the perspective of the side to move), or moves until mate
+  value: number; // Centipawns (from perspective of side to move), or plies to mate (+ for winning, - for losing)
 }
 
 export interface EngineEvaluation {
@@ -12,7 +13,7 @@ export interface EngineEvaluation {
   pv: string[]; // UCI format e.g. ["e2e4", "c7c5", "g1f3"]
   pvSan: string[]; // SAN format e.g. ["e4", "c5", "Nf3"]
   depth: number;
-  source: 'stockfish' | 'lichess-cloud';
+  source: 'stockfish' | 'lichess-cloud' | 'heuristic';
 }
 
 // Global hook for stockfish.js output listener
@@ -22,7 +23,11 @@ let isStockfishInitialized = false;
 
 function ensureStockfish() {
   if (isStockfishInitialized) return;
+
   if (typeof globalThis !== 'undefined') {
+    // Avoid Emscripten worker/importScripts detection in Node
+    (globalThis as unknown as { importScripts?: unknown }).importScripts = undefined;
+
     (globalThis as unknown as { postMessage: (msg: string) => void }).postMessage = (
       msg: string,
     ) => {
@@ -30,7 +35,7 @@ function ensureStockfish() {
         try {
           listener(msg);
         } catch {
-          // ignore individual listener errors
+          // Ignore individual listener errors
         }
       }
     };
@@ -38,15 +43,50 @@ function ensureStockfish() {
 
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    require('stockfish.js/stockfish.js');
+    const sfPath = require.resolve('stockfish.js/stockfish.js');
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    require(sfPath);
     isStockfishInitialized = true;
+
+    const targetGlobal = globalThis as unknown as {
+      onmessage?: (event: { data: string }) => void;
+    };
+    if (targetGlobal.onmessage) {
+      targetGlobal.onmessage({ data: 'uci' });
+      targetGlobal.onmessage({ data: 'ucinewgame' });
+    }
   } catch (err) {
-    console.error('Failed to load stockfish.js:', err);
+    console.error('Failed to load local stockfish.js:', err);
   }
 }
 
 /**
- * Helper to convert a sequence of UCI moves into SAN given a starting FEN
+ * Normalizes UCI castling notations into standard algebraic squares
+ * (e.g. e1h1 -> e1g1, e8h8 -> e8g8, e1a1 -> e1c1, e8a8 -> e8c8).
+ */
+function normalizeCastlingUci(
+  chess: Chess,
+  from: string,
+  to: string,
+): { from: string; to: string } {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const piece = chess.get(from as any);
+    if (piece && piece.type === 'k') {
+      if (from === 'e1' && to === 'h1') return { from: 'e1', to: 'g1' };
+      if (from === 'e1' && to === 'a1') return { from: 'e1', to: 'c1' };
+      if (from === 'e8' && to === 'h8') return { from: 'e8', to: 'g8' };
+      if (from === 'e8' && to === 'a8') return { from: 'e8', to: 'c8' };
+    }
+  } catch {
+    // ignore
+  }
+  return { from, to };
+}
+
+/**
+ * Helper to convert a sequence of UCI moves into SAN given a starting FEN.
+ * Handles castling normalization and prevents premature truncation of PV lines.
  */
 export function convertUciMovesToSan(
   fen: string,
@@ -60,9 +100,12 @@ export function convertUciMovesToSan(
     for (let i = 0; i < uciMoves.length; i++) {
       const uci = uciMoves[i];
       if (!uci || uci.length < 4) break;
-      const from = uci.slice(0, 2);
-      const to = uci.slice(2, 4);
+
+      const rawFrom = uci.slice(0, 2);
+      const rawTo = uci.slice(2, 4);
       const promotion = uci[4] ? uci[4].toLowerCase() : undefined;
+
+      const { from, to } = normalizeCastlingUci(tempChess, rawFrom, rawTo);
 
       try {
         const moveResult = tempChess.move({ from, to, promotion });
@@ -91,12 +134,12 @@ export function convertUciMovesToSan(
 /**
  * Fast query to Lichess Cloud Eval API
  */
-async function fetchLichessCloudEval(fen: string): Promise<EngineEvaluation | null> {
+export async function fetchLichessCloudEval(fen: string): Promise<EngineEvaluation | null> {
   try {
     const url = `https://lichess.org/api/cloud-eval?fen=${encodeURIComponent(fen)}&multiPv=1`;
     const res = await fetch(url, {
       headers: { Accept: 'application/json' },
-      signal: AbortSignal.timeout(1200),
+      signal: AbortSignal.timeout(600),
     });
 
     if (!res.ok) return null;
@@ -115,7 +158,7 @@ async function fetchLichessCloudEval(fen: string): Promise<EngineEvaluation | nu
     let value = 0;
 
     // Lichess Cloud Eval returns scores from White's perspective.
-    // Convert to the perspective of the side to move (standard UCI engine convention).
+    // Convert to perspective of side to move.
     if (typeof pvItem.cp === 'number') {
       type = 'cp';
       value = isBlack ? -pvItem.cp : pvItem.cp;
@@ -144,7 +187,7 @@ async function fetchLichessCloudEval(fen: string): Promise<EngineEvaluation | nu
 // Queue for sequential Stockfish execution
 let evaluationQueue: Promise<unknown> = Promise.resolve();
 
-function runStockfishLocal(fen: string, depth = 12): Promise<EngineEvaluation> {
+export function runStockfishLocal(fen: string, depth = 8): Promise<EngineEvaluation> {
   ensureStockfish();
 
   return new Promise((resolve, reject) => {
@@ -152,7 +195,7 @@ function runStockfishLocal(fen: string, depth = 12): Promise<EngineEvaluation> {
     const timeout = setTimeout(() => {
       globalListeners = globalListeners.filter((l) => l !== onLine);
       reject(new Error(`Stockfish timeout at depth ${depth}`));
-    }, 6000);
+    }, 3000);
 
     const onLine: OutputListener = (line: string) => {
       if (typeof line !== 'string') return;
@@ -209,7 +252,6 @@ function runStockfishLocal(fen: string, depth = 12): Promise<EngineEvaluation> {
     };
 
     if (targetGlobal.onmessage) {
-      targetGlobal.onmessage({ data: 'ucinewgame' });
       targetGlobal.onmessage({ data: `position fen ${fen}` });
       targetGlobal.onmessage({ data: `go depth ${depth}` });
     } else {
@@ -221,13 +263,14 @@ function runStockfishLocal(fen: string, depth = 12): Promise<EngineEvaluation> {
 }
 
 /**
- * Main evaluation function:
- * 1. Checks Lichess Cloud Eval for instant high-depth evaluation.
- * 2. Fallbacks to local Stockfish engine with depth.
+ * Evaluates a single FEN position:
+ * 1. Checks fast Lichess Cloud Eval first (depth 30-50).
+ * 2. Runs local Stockfish engine (depth 10).
+ * 3. Fallbacks to positional heuristic if local engine fails/times out.
  */
 export async function evaluatePosition(
   fen: string,
-  depth = 12,
+  depth = 10,
 ): Promise<EngineEvaluation> {
   // 1. Try fast Lichess Cloud Eval first
   const cloudResult = await fetchLichessCloudEval(fen);
@@ -236,8 +279,27 @@ export async function evaluatePosition(
   }
 
   // 2. Queue local Stockfish run
-  const runTask = () => runStockfishLocal(fen, depth);
-  const queuedPromise = evaluationQueue.then(runTask, runTask);
-  evaluationQueue = queuedPromise.catch(() => {});
-  return queuedPromise;
+  try {
+    const runTask = () => runStockfishLocal(fen, depth);
+    const queuedPromise = evaluationQueue.then(runTask, runTask);
+    evaluationQueue = queuedPromise.catch(() => {});
+    return await queuedPromise;
+  } catch {
+    // 3. Robust fallback: Positional/Material Heuristic (never return flat 0.00!)
+    const heuristic = evaluatePositionHeuristic(fen);
+    const isBlack = fen.split(' ')[1] === 'b';
+    const valCp = Math.round(heuristic.score * 100);
+    return {
+      score: {
+        type: heuristic.isCheckmate ? 'mate' : 'cp',
+        value: isBlack ? -valCp : valCp,
+      },
+      bestmove: '',
+      bestmoveSan: '',
+      pv: [],
+      pvSan: [],
+      depth: 1,
+      source: 'heuristic',
+    };
+  }
 }
