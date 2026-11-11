@@ -17,6 +17,7 @@ import {
   ExternalLink,
   Flame,
   Globe,
+  GraduationCap,
   Loader2,
   MinusCircle,
   Search,
@@ -27,6 +28,7 @@ import {
   XCircle,
   Zap,
 } from 'lucide-react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState, useTransition } from 'react';
 
@@ -199,6 +201,24 @@ export function ChessDashboard({
           </a>
 
           <div className="flex items-center gap-2 sm:gap-3 text-xs">
+            <Link
+              href="/for-trainers"
+              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#fbbf24]/30 bg-[#fbbf24]/10 hover:bg-[#fbbf24]/20 text-[#fbbf24] font-medium transition-all"
+            >
+              <GraduationCap className="w-3.5 h-3.5" />
+              <span>Для тренеров</span>
+            </Link>
+
+            <Link
+              href="/auth"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#302e2b] bg-[#211f1c] hover:bg-[#262421] text-[#c3c2c1] hover:text-white font-medium transition-all"
+            >
+              <User className="w-3.5 h-3.5" />
+              <span>Войти</span>
+            </Link>
+
+            <div className="w-px h-5 bg-[#302e2b] hidden sm:block" />
+
             <button
               type="button"
               onClick={() => onPlatformChange('lichess')}
