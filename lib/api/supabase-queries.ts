@@ -7,6 +7,7 @@ import type {
   GroupWithMemberCount,
   GroupMemberWithProfile,
   ChessPlatform,
+  UserRole,
 } from "@/types/auth";
 
 // ─── Profile ────────────────────────────────────────────────────────────
@@ -24,6 +25,51 @@ export async function getProfile(userId: string): Promise<Profile | null> {
     return null;
   }
   return data as Profile;
+}
+
+export async function getAllProfiles(): Promise<Profile[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("getAllProfiles error:", error.message);
+    return [];
+  }
+  return (data ?? []) as Profile[];
+}
+
+export async function updateUserRole(
+  userId: string,
+  newRole: UserRole,
+): Promise<boolean> {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("profiles")
+    .update({ role: newRole, updated_at: new Date().toISOString() })
+    .eq("id", userId);
+
+  if (error) {
+    console.error("updateUserRole error:", error.message);
+    return false;
+  }
+  return true;
+}
+
+export async function deleteUserProfile(userId: string): Promise<boolean> {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("profiles")
+    .delete()
+    .eq("id", userId);
+
+  if (error) {
+    console.error("deleteUserProfile error:", error.message);
+    return false;
+  }
+  return true;
 }
 
 export async function updateProfile(

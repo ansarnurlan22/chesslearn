@@ -7,9 +7,12 @@ import {
   getGroupMembers,
   addGroupMember,
   removeGroupMember,
+  getAllProfiles,
+  updateUserRole,
+  deleteUserProfile,
 } from '@/lib/api/supabase-queries';
 import { getUnifiedPlayerProfile } from '@/lib/api/unified';
-import type { ChessPlatform, Group, GroupMember, GroupMemberWithProfile } from '@/types/auth';
+import type { ChessPlatform, Group, GroupMember, GroupMemberWithProfile, Profile, UserRole } from '@/types/auth';
 import type { UnifiedPlayerProfile } from '@/lib/api/types';
 import { revalidatePath } from 'next/cache';
 
@@ -168,6 +171,82 @@ export async function getStudentStatsAction(
     return { success: true, profile };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Не удалось загрузить рейтинг игрока';
+    return { success: false, error: message };
+  }
+}
+
+export async function getAllProfilesAction(): Promise<{
+  success: boolean;
+  profiles: Profile[];
+  error?: string;
+}> {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return { success: false, profiles: [], error: 'Необходима авторизация' };
+    }
+
+    const profiles = await getAllProfiles();
+    return { success: true, profiles };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Ошибка при загрузке пользователей';
+    return { success: false, profiles: [], error: message };
+  }
+}
+
+export async function updateUserRoleAction(
+  targetUserId: string,
+  newRole: UserRole,
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return { success: false, error: 'Необходима авторизация' };
+    }
+
+    const ok = await updateUserRole(targetUserId, newRole);
+    if (!ok) {
+      return { success: false, error: 'Не удалось обновить роль пользователя' };
+    }
+
+    revalidatePath('/dashboard/trainer');
+    return { success: true };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Ошибка при обновлении роли';
+    return { success: false, error: message };
+  }
+}
+
+export async function deleteUserProfileAction(
+  targetUserId: string,
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return { success: false, error: 'Необходима авторизация' };
+    }
+
+    const ok = await deleteUserProfile(targetUserId);
+    if (!ok) {
+      return { success: false, error: 'Не удалось удалить пользователя' };
+    }
+
+    revalidatePath('/dashboard/trainer');
+    return { success: true };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Ошибка при удалении';
     return { success: false, error: message };
   }
 }
