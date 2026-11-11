@@ -13,7 +13,6 @@ import {
   Target,
   Trophy,
   Users,
-  Zap,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -115,27 +114,6 @@ const STEPS = [
     title: 'Задавайте домашку — разбор партий на ChessCheese',
     description: 'Ученики анализируют свои партии, а вы видите их прогресс',
     icon: Trophy,
-  },
-] as const;
-
-const STATS = [
-  {
-    value: '0 → 500',
-    label: 'учеников',
-    sublabel: 'цель на 2027',
-    icon: Users,
-  },
-  {
-    value: '20+',
-    label: 'клубов',
-    sublabel: 'Астана и Казахстан',
-    icon: Globe,
-  },
-  {
-    value: '0 ₸',
-    label: 'Бесплатно',
-    sublabel: 'навсегда',
-    icon: Zap,
   },
 ] as const;
 
@@ -331,48 +309,6 @@ export default function ForTrainersPage() {
                       <p className="text-sm text-[#8b8987] leading-relaxed">
                         {s.description}
                       </p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </section>
-
-        {/* ── Stats / Social Proof Section ─────────────────────────── */}
-        <section className="relative py-20 sm:py-28">
-          <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-[#302e2b] to-transparent" />
-
-          <div className="max-w-5xl mx-auto px-4 sm:px-6">
-            <div className="text-center mb-14">
-              <h2 className="text-3xl sm:text-4xl font-black text-white tracking-tight mb-4">
-                Уже используют тренеры Астаны
-              </h2>
-              <p className="text-[#8b8987] text-base sm:text-lg max-w-xl mx-auto">
-                Присоединяйтесь к сообществу тренеров, которые экономят время с
-                ChessCheese
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-              {STATS.map((stat) => {
-                const StatIcon = stat.icon;
-                return (
-                  <div
-                    key={stat.label}
-                    className="bg-[#211f1c] border border-[#302e2b] rounded-2xl p-8 text-center transition-all hover:bg-[#262421]"
-                  >
-                    <div className="w-12 h-12 rounded-xl bg-[#fbbf24]/10 border border-[#fbbf24]/20 flex items-center justify-center mx-auto mb-5">
-                      <StatIcon className="w-6 h-6 text-[#fbbf24]" />
-                    </div>
-                    <div className="text-3xl sm:text-4xl font-black text-white mb-1 tracking-tight">
-                      {stat.value}
-                    </div>
-                    <div className="text-base font-semibold text-[#c3c2c1]">
-                      {stat.label}
-                    </div>
-                    <div className="text-xs text-[#8b8987] mt-1">
-                      {stat.sublabel}
                     </div>
                   </div>
                 );

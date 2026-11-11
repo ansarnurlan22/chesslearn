@@ -25,6 +25,30 @@ interface FormErrors {
   general?: string;
 }
 
+function formatAuthError(msg?: string): string {
+  if (!msg) return 'Произошла ошибка при авторизации';
+  const lower = msg.toLowerCase();
+  if (lower.includes('invalid login credentials')) {
+    return 'Неверный email или пароль. Проверьте правильность ввода.';
+  }
+  if (lower.includes('email not confirmed')) {
+    return 'Email не подтверждён! Перейдите по ссылке в письме (проверьте папку «Спам») или отключите Confirm Email в панели Supabase.';
+  }
+  if (lower.includes('user already registered')) {
+    return 'Пользователь с таким email уже зарегистрирован. Перейдите во вкладку «Вход».';
+  }
+  if (lower.includes('password should be')) {
+    return 'Пароль должен содержать как минимум 6 символов.';
+  }
+  if (lower.includes('rate limit') || lower.includes('too many requests')) {
+    return 'Слишком много попыток. Пожалуйста, подождите минуту.';
+  }
+  if (lower.includes('recursion')) {
+    return 'Ошибка базы данных (RLS рекурсия). Запустите обновлённый SQL-скрипт в Supabase SQL Editor.';
+  }
+  return msg;
+}
+
 function validateEmail(email: string): string | undefined {
   if (!email.trim()) return 'Введите email';
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return 'Некорректный email';
@@ -97,7 +121,7 @@ function AuthPageContent() {
     });
 
     if (error) {
-      setErrors({ general: error.message });
+      setErrors({ general: formatAuthError(error.message) });
       setLoading(false);
       return;
     }
@@ -129,7 +153,7 @@ function AuthPageContent() {
 
     setLoading(true);
 
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email: email.trim(),
       password,
       options: {
@@ -141,12 +165,25 @@ function AuthPageContent() {
     });
 
     if (error) {
-      setErrors({ general: error.message });
+      setErrors({ general: formatAuthError(error.message) });
       setLoading(false);
       return;
     }
 
-    setSuccessMessage('Проверьте почту для подтверждения регистрации ✉️');
+    if (data.session) {
+      // If email confirmation is disabled, redirect immediately!
+      const userRole = data.user?.user_metadata?.role as string | undefined;
+      if (userRole === 'trainer') {
+        router.push('/dashboard/trainer');
+      } else {
+        router.push('/');
+      }
+      return;
+    }
+
+    setSuccessMessage(
+      'Регистрация успешна! Если на почту пришло письмо — подтвердите email, либо отключите «Confirm email» в настройках Supabase.',
+    );
     setLoading(false);
   };
 

@@ -107,10 +107,6 @@ export function TrainerDashboard({ initialGroups, profile }: TrainerDashboardPro
     return Math.max(allUsernames.size, sum);
   }, [membersMap, groups]);
 
-  // Goal of 500 students in Astana
-  const GOAL_STUDENTS = 500;
-  const progressPercent = Math.min(100, Math.round((totalStudents / GOAL_STUDENTS) * 100));
-
   // Copy helper
   const handleCopyCode = (code: string) => {
     navigator.clipboard.writeText(code);
@@ -281,24 +277,14 @@ export function TrainerDashboard({ initialGroups, profile }: TrainerDashboardPro
             </div>
           </div>
 
-          {/* Card 3: Astana 500 Goal */}
-          <div className="bg-[#191815] border border-[#302e2b] rounded-2xl p-5 flex flex-col justify-between">
-            <div className="flex items-center justify-between text-xs mb-1.5">
-              <span className="flex items-center gap-1.5 font-bold text-[#fbbf24]">
-                <Target className="w-4 h-4 text-[#fbbf24]" />
-                Цель до Нового Года: 500
-              </span>
-              <span className="font-mono text-white text-xs">{totalStudents} / {GOAL_STUDENTS}</span>
+          {/* Card 3: Platforms */}
+          <div className="bg-[#191815] border border-[#302e2b] rounded-2xl p-5 flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-[#fbbf24]/10 border border-[#fbbf24]/20 flex items-center justify-center text-[#fbbf24] shrink-0">
+              <Globe className="w-6 h-6" />
             </div>
-            <div className="w-full h-2.5 rounded-full bg-[#161512] border border-[#302e2b] overflow-hidden mt-1">
-              <div
-                style={{ width: `${Math.max(5, progressPercent)}%` }}
-                className="bg-gradient-to-r from-[#fbbf24] to-[#f59e0b] h-full transition-all duration-700"
-              />
-            </div>
-            <div className="text-[11px] text-[#8b8987] mt-1.5 flex justify-between">
-              <span>{progressPercent}% выполнено</span>
-              <span>Осталось: {Math.max(0, GOAL_STUDENTS - totalStudents)}</span>
+            <div>
+              <div className="text-base sm:text-lg font-black text-white">Lichess + Chess.com</div>
+              <div className="text-xs text-[#8b8987] font-medium">Синхронизация партий</div>
             </div>
           </div>
         </div>
