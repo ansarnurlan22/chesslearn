@@ -27,6 +27,8 @@ import {
   Calculator,
   Calendar,
   CheckCircle2,
+  ChevronDown,
+  ChevronRight,
   Clock,
   Compass,
   Crown,
@@ -47,13 +49,14 @@ import {
   Trophy,
   User,
   Users,
+  Wrench,
   X,
   XCircle,
   Zap,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useEffect, useMemo, useState, useTransition } from 'react';
+import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
 
 export type DashboardTab =
   | 'analysis'
@@ -67,17 +70,86 @@ export type DashboardTab =
   | 'openings'
   | 'status';
 
-const NAV_ITEMS: { id: DashboardTab; label: string; icon: React.ElementType; badge?: string }[] = [
-  { id: 'analysis', label: 'Анализ партий', icon: Swords },
-  { id: 'analysisBoard', label: 'Доска анализа', icon: Compass, badge: 'Stockfish 19' },
-  { id: 'editor', label: 'Редактор доски', icon: Edit2 },
-  { id: 'boardSetup', label: 'Расстановка доски', icon: Trophy, badge: 'Спринт' },
-  { id: 'pieceMoves', label: 'Ходы фигур', icon: Target, badge: 'Тренажёр' },
-  { id: 'elo', label: 'ELO / FIDE Калькулятор', icon: Calculator },
-  { id: 'clock', label: 'Шахматные часы', icon: Clock },
-  { id: 'roundRobin', label: 'Генератор турниров', icon: Users, badge: 'Бергер' },
-  { id: 'openings', label: 'Дебютный справочник', icon: BookOpen, badge: '200+' },
-  { id: 'status', label: 'Статус Chess.com', icon: Globe },
+export interface ToolItem {
+  id: DashboardTab;
+  label: string;
+  shortDesc: string;
+  icon: React.ElementType;
+  badge?: string;
+  category: 'Анализ' | 'Тренировка' | 'Утилиты';
+}
+
+export const TOOLS_ITEMS: ToolItem[] = [
+  {
+    id: 'analysisBoard',
+    label: 'Доска анализа',
+    shortDesc: 'Интерактивный анализ ходов, мульти-PV и стрелки',
+    icon: Compass,
+    badge: 'Engine',
+    category: 'Анализ',
+  },
+  {
+    id: 'editor',
+    label: 'Редактор доски',
+    shortDesc: 'Расстановка фигур, рокировки и экспорт FEN',
+    icon: Edit2,
+    badge: 'FEN',
+    category: 'Анализ',
+  },
+  {
+    id: 'boardSetup',
+    label: 'Расстановка доски',
+    shortDesc: 'Спринт расстановки стартовой позиции на время',
+    icon: Trophy,
+    badge: 'Спринт',
+    category: 'Тренировка',
+  },
+  {
+    id: 'pieceMoves',
+    label: 'Ходы фигур',
+    shortDesc: 'Тренажёр правил всех ходов фигуры с 3 жизнями',
+    icon: Target,
+    badge: 'Тренажёр',
+    category: 'Тренировка',
+  },
+  {
+    id: 'openings',
+    label: 'Дебютный справочник',
+    shortDesc: 'База более 200 дебютов с кодами ECO и ходами',
+    icon: BookOpen,
+    badge: '200+',
+    category: 'Тренировка',
+  },
+  {
+    id: 'elo',
+    label: 'ELO / FIDE Калькулятор',
+    shortDesc: 'Калькулятор одиночных партий и турниров FIDE',
+    icon: Calculator,
+    category: 'Утилиты',
+  },
+  {
+    id: 'clock',
+    label: 'Шахматные часы',
+    shortDesc: 'Часы с контролем Bullet/Blitz и переворотом экрана',
+    icon: Clock,
+    badge: 'Звук',
+    category: 'Утилиты',
+  },
+  {
+    id: 'roundRobin',
+    label: 'Генератор турниров',
+    shortDesc: 'Таблицы Бергера для 3–20 игроков и жеребьёвка',
+    icon: Users,
+    badge: 'Бергер',
+    category: 'Утилиты',
+  },
+  {
+    id: 'status',
+    label: 'Статус Chess.com',
+    shortDesc: 'Живой мониторинг серверов Chess.com и Lichess',
+    icon: Globe,
+    category: 'Утилиты',
+  },
 ];
 
 export interface ChessDashboardProps {
@@ -103,6 +175,34 @@ export function ChessDashboard({
   const tabParam = searchParams?.get('tab') as DashboardTab | null;
   const [activeTab, setActiveTab] = useState<DashboardTab>(tabParam || 'analysis');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isToolsFlyoutOpen, setIsToolsFlyoutOpen] = useState(false);
+  const [isMobileToolsAccordionOpen, setIsMobileToolsAccordionOpen] = useState(true);
+  const flyoutTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleToolsMouseEnter = () => {
+    if (flyoutTimerRef.current) {
+      clearTimeout(flyoutTimerRef.current);
+      flyoutTimerRef.current = null;
+    }
+    setIsToolsFlyoutOpen(true);
+  };
+
+  const handleToolsMouseLeave = () => {
+    flyoutTimerRef.current = setTimeout(() => {
+      setIsToolsFlyoutOpen(false);
+    }, 200);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (flyoutTimerRef.current) {
+        clearTimeout(flyoutTimerRef.current);
+      }
+    };
+  }, []);
+
+  const isToolActive = activeTab !== 'analysis';
+  const currentActiveTool = TOOLS_ITEMS.find((t) => t.id === activeTab);
   const [analysisFen, setAnalysisFen] = useState<string | undefined>(undefined);
   const [editorFen, setEditorFen] = useState<string | undefined>(undefined);
   const { user, profile: authProfile, signOut } = useAuth();
@@ -319,39 +419,100 @@ export function ChessDashboard({
         <div className="md:hidden fixed inset-x-0 top-16 bottom-0 z-40 bg-[#161512]/95 backdrop-blur-md p-4 flex flex-col justify-between overflow-y-auto">
           <div className="flex flex-col gap-2">
             <div className="text-[10px] uppercase font-bold tracking-wider text-zinc-500 mb-1 px-2">
-              Инструменты и анализ
+              Навигация
             </div>
-            {NAV_ITEMS.map((item) => {
-              const Icon = item.icon;
-              const isActive = activeTab === item.id;
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => {
-                    setActiveTab(item.id);
-                    setIsMobileMenuOpen(false);
-                  }}
-                  className={`flex items-center justify-between px-3.5 py-3 rounded-xl font-medium text-sm transition-all text-left cursor-pointer ${
-                    isActive
-                      ? isChessCom
-                        ? 'bg-[#81b64c]/15 text-[#81b64c] border border-[#81b64c]/30 font-semibold'
-                        : 'bg-[#3692e7]/15 text-[#3692e7] border border-[#3692e7]/30 font-semibold'
-                      : 'text-zinc-400 hover:text-white hover:bg-[#211f1c]'
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <Icon className="w-5 h-5" />
-                    <span>{item.label}</span>
-                  </div>
-                  {item.badge && (
-                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#211f1c] text-zinc-400 border border-[#302e2b]">
-                      {item.badge}
+
+            {/* 1. Обзор партий */}
+            <button
+              type="button"
+              onClick={() => {
+                setActiveTab('analysis');
+                setIsMobileMenuOpen(false);
+              }}
+              className={`flex items-center justify-between px-3.5 py-3 rounded-xl font-medium text-sm transition-all text-left cursor-pointer ${
+                activeTab === 'analysis'
+                  ? isChessCom
+                    ? 'bg-[#81b64c]/15 text-[#81b64c] border border-[#81b64c]/30 font-semibold'
+                    : 'bg-[#3692e7]/15 text-[#3692e7] border border-[#3692e7]/30 font-semibold'
+                  : 'text-zinc-400 hover:text-white hover:bg-[#211f1c]'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <Swords className="w-5 h-5" />
+                <span>Обзор партий</span>
+              </div>
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#211f1c] text-zinc-400 border border-[#302e2b]">
+                Review
+              </span>
+            </button>
+
+            {/* 2. Инструменты (Аккордеон) */}
+            <div className="flex flex-col rounded-xl border border-[#302e2b] bg-[#1a1815] overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setIsMobileToolsAccordionOpen(!isMobileToolsAccordionOpen)}
+                className={`flex items-center justify-between px-3.5 py-3 text-sm font-semibold transition-all cursor-pointer ${
+                  isToolActive
+                    ? isChessCom
+                      ? 'text-[#81b64c]'
+                      : 'text-[#3692e7]'
+                    : 'text-zinc-300'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <Wrench className="w-5 h-5" />
+                  <span>Инструменты</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  {currentActiveTool && (
+                    <span className="text-[10px] px-2 py-0.5 rounded bg-[#211f1c] text-zinc-300 border border-[#302e2b]">
+                      {currentActiveTool.label}
                     </span>
                   )}
-                </button>
-              );
-            })}
+                  <ChevronDown
+                    className={`w-4 h-4 transition-transform duration-200 ${
+                      isMobileToolsAccordionOpen ? 'rotate-180' : ''
+                    }`}
+                  />
+                </div>
+              </button>
+
+              {isMobileToolsAccordionOpen && (
+                <div className="p-2 border-t border-[#302e2b] bg-[#161512] flex flex-col gap-1">
+                  {TOOLS_ITEMS.map((tool) => {
+                    const ToolIcon = tool.icon;
+                    const isItemActive = activeTab === tool.id;
+                    return (
+                      <button
+                        key={tool.id}
+                        type="button"
+                        onClick={() => {
+                          setActiveTab(tool.id);
+                          setIsMobileMenuOpen(false);
+                        }}
+                        className={`flex items-center justify-between p-2.5 rounded-lg text-xs font-medium transition-all text-left cursor-pointer ${
+                          isItemActive
+                            ? isChessCom
+                              ? 'bg-[#81b64c]/20 text-[#81b64c] font-bold border border-[#81b64c]/40'
+                              : 'bg-[#3692e7]/20 text-[#3692e7] font-bold border border-[#3692e7]/40'
+                            : 'text-zinc-400 hover:text-white hover:bg-[#211f1c]'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <ToolIcon className="w-4 h-4" />
+                          <span>{tool.label}</span>
+                        </div>
+                        {tool.badge && (
+                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-[#211f1c] text-zinc-500">
+                            {tool.badge}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
 
             {/* Platform switcher in mobile menu */}
             <div className="mt-4 pt-4 border-t border-[#302e2b]">
@@ -386,10 +547,6 @@ export function ChessDashboard({
           </div>
 
           <div className="pt-4 border-t border-[#302e2b] flex items-center justify-between text-xs text-zinc-500">
-            <span className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-400" />
-              Stockfish 19 Lite
-            </span>
             <span>© ChessCheese</span>
           </div>
         </div>
@@ -397,22 +554,11 @@ export function ChessDashboard({
 
       {/* Desktop Left Sidebar (как на chessigma.com) */}
       <aside className="hidden md:flex flex-col w-64 h-screen sticky top-0 border-r border-[#302e2b] bg-[#1a1815] shrink-0 z-30 select-none">
-        {/* Logo & Engine Header */}
-        <div className="p-4 border-b border-[#302e2b] flex flex-col gap-3">
+        {/* Logo */}
+        <div className="p-4 border-b border-[#302e2b] flex items-center justify-between">
           <a href="/" className="flex items-center gap-2.5">
             <Logo size="md" />
           </a>
-
-          {/* Engine Pill */}
-          <div className="flex items-center justify-between px-3 py-1.5 rounded-xl bg-[#211f1c] border border-[#302e2b]">
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="text-xs font-bold text-white tracking-tight">Stockfish 19 Lite</span>
-            </div>
-            <span className="text-[10px] uppercase font-mono text-emerald-400 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
-              Active
-            </span>
-          </div>
         </div>
 
         {/* Platform Selector in Sidebar */}
@@ -448,46 +594,158 @@ export function ChessDashboard({
         </div>
 
         {/* Nav Items List */}
-        <div className="flex-1 p-3 overflow-y-auto space-y-1">
+        <div className="flex-1 p-3 space-y-1.5">
           <div className="text-[10px] uppercase font-bold tracking-wider text-zinc-500 mb-2 px-2">
-            Инструменты & Анализ
+            Навигация
           </div>
-          {NAV_ITEMS.map((item) => {
-            const Icon = item.icon;
-            const isActive = activeTab === item.id;
-            return (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => setActiveTab(item.id)}
-                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl font-medium text-xs transition-all cursor-pointer text-left ${
-                  isActive
+
+          {/* 1. Обзор партий */}
+          <button
+            type="button"
+            onClick={() => setActiveTab('analysis')}
+            className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl font-medium text-xs transition-all cursor-pointer text-left ${
+              activeTab === 'analysis'
+                ? isChessCom
+                  ? 'bg-[#81b64c]/15 text-[#81b64c] border border-[#81b64c]/30 font-semibold shadow-sm'
+                  : 'bg-[#3692e7]/15 text-[#3692e7] border border-[#3692e7]/30 font-semibold shadow-sm'
+                : 'text-zinc-400 hover:text-white hover:bg-[#211f1c]'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <Swords
+                className={`w-4 h-4 ${
+                  activeTab === 'analysis'
                     ? isChessCom
-                      ? 'bg-[#81b64c]/15 text-[#81b64c] border border-[#81b64c]/30 font-semibold shadow-sm'
-                      : 'bg-[#3692e7]/15 text-[#3692e7] border border-[#3692e7]/30 font-semibold shadow-sm'
-                    : 'text-zinc-400 hover:text-white hover:bg-[#211f1c]'
+                      ? 'text-[#81b64c]'
+                      : 'text-[#3692e7]'
+                    : 'text-zinc-500'
                 }`}
-              >
-                <div className="flex items-center gap-3">
-                  <Icon
-                    className={`w-4 h-4 ${
-                      isActive
-                        ? isChessCom
-                          ? 'text-[#81b64c]'
-                          : 'text-[#3692e7]'
-                        : 'text-zinc-500'
-                    }`}
-                  />
-                  <span>{item.label}</span>
-                </div>
-                {item.badge && (
-                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-[#211f1c] text-zinc-400 border border-[#302e2b]">
-                    {item.badge}
+              />
+              <span>Обзор партий</span>
+            </div>
+            <span className="text-[9px] px-1.5 py-0.5 rounded bg-[#211f1c] text-zinc-400 border border-[#302e2b]">
+              Review
+            </span>
+          </button>
+
+          {/* 2. Единая кнопка "Инструменты" с выпадающим меню вариантов при наведении */}
+          <div
+            className="relative"
+            onMouseEnter={handleToolsMouseEnter}
+            onMouseLeave={handleToolsMouseLeave}
+          >
+            <button
+              type="button"
+              onClick={() => {
+                if (activeTab === 'analysis') {
+                  setActiveTab('analysisBoard');
+                }
+                setIsToolsFlyoutOpen(!isToolsFlyoutOpen);
+              }}
+              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl font-medium text-xs transition-all cursor-pointer text-left ${
+                isToolActive
+                  ? isChessCom
+                    ? 'bg-[#81b64c]/15 text-[#81b64c] border border-[#81b64c]/30 font-semibold shadow-sm'
+                    : 'bg-[#3692e7]/15 text-[#3692e7] border border-[#3692e7]/30 font-semibold shadow-sm'
+                  : 'text-zinc-400 hover:text-white hover:bg-[#211f1c]'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <Wrench
+                  className={`w-4 h-4 ${
+                    isToolActive
+                      ? isChessCom
+                        ? 'text-[#81b64c]'
+                        : 'text-[#3692e7]'
+                      : 'text-zinc-500'
+                  }`}
+                />
+                <span>Инструменты</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                {currentActiveTool && (
+                  <span className="text-[9px] max-w-[70px] truncate px-1.5 py-0.5 rounded bg-[#211f1c] text-zinc-300 border border-[#302e2b]">
+                    {currentActiveTool.label.split(' ')[0]}
                   </span>
                 )}
-              </button>
-            );
-          })}
+                <ChevronRight
+                  className={`w-3.5 h-3.5 text-zinc-500 transition-transform duration-200 ${
+                    isToolsFlyoutOpen ? 'translate-x-0.5 text-white' : ''
+                  }`}
+                />
+              </div>
+            </button>
+
+            {/* Flyout Popover Menu — высвечивается при наводке */}
+            {isToolsFlyoutOpen && (
+              <div
+                className="absolute left-[calc(100%+8px)] top-0 z-50 w-80 rounded-2xl bg-[#1c1a17]/98 border border-[#302e2b] shadow-2xl p-2.5 backdrop-blur-xl animate-in fade-in slide-in-from-left-2 duration-150 before:absolute before:-left-3 before:top-0 before:w-4 before:h-full before:content-['']"
+                onMouseEnter={handleToolsMouseEnter}
+                onMouseLeave={handleToolsMouseLeave}
+              >
+                <div className="flex items-center justify-between px-2.5 py-1.5 border-b border-[#302e2b] mb-1.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-1.5">
+                    <Wrench className="w-3.5 h-3.5 text-[#81b64c]" />
+                    Все инструменты
+                  </span>
+                  <span className="text-[10px] text-zinc-500 font-mono">
+                    {TOOLS_ITEMS.length} шт
+                  </span>
+                </div>
+
+                <div className="max-h-[calc(100vh-140px)] overflow-y-auto space-y-1 pr-1">
+                  {TOOLS_ITEMS.map((tool) => {
+                    const ToolIcon = tool.icon;
+                    const isItemActive = activeTab === tool.id;
+                    return (
+                      <button
+                        key={tool.id}
+                        type="button"
+                        onClick={() => {
+                          setActiveTab(tool.id);
+                          setIsToolsFlyoutOpen(false);
+                        }}
+                        className={`w-full flex items-start gap-3 p-2 rounded-xl text-left transition-all cursor-pointer group ${
+                          isItemActive
+                            ? isChessCom
+                              ? 'bg-[#81b64c]/20 text-white border border-[#81b64c]/40 shadow-sm'
+                              : 'bg-[#3692e7]/20 text-white border border-[#3692e7]/40 shadow-sm'
+                            : 'text-zinc-300 hover:text-white hover:bg-[#262420] border border-transparent'
+                        }`}
+                      >
+                        <div
+                          className={`p-1.5 rounded-lg mt-0.5 shrink-0 ${
+                            isItemActive
+                              ? isChessCom
+                                ? 'bg-[#81b64c] text-white shadow-sm'
+                                : 'bg-[#3692e7] text-white shadow-sm'
+                              : 'bg-[#262420] text-zinc-400 group-hover:text-white group-hover:bg-[#302e2b]'
+                          }`}
+                        >
+                          <ToolIcon className="w-4 h-4" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-1">
+                            <span className="text-xs font-bold text-white truncate">
+                              {tool.label}
+                            </span>
+                            {tool.badge && (
+                              <span className="text-[9px] px-1.5 py-0.2 rounded bg-[#161512] text-zinc-400 border border-[#302e2b] font-mono shrink-0">
+                                {tool.badge}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[10px] text-zinc-500 line-clamp-1 mt-0.5 font-normal">
+                            {tool.shortDesc}
+                          </p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Bottom User Area */}
@@ -1336,35 +1594,65 @@ export function ChessDashboard({
       </div>
 
       {/* Mobile Bottom Navigation Bar (как на мобильной версии chessigma) */}
-      <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-[#1a1815]/95 backdrop-blur-md border-t border-[#302e2b] flex items-center justify-around py-2 px-1 text-[10px]">
-        {NAV_ITEMS.slice(0, 5).map((item) => {
-          const Icon = item.icon;
-          const isActive = activeTab === item.id;
-          return (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => setActiveTab(item.id)}
-              className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg transition-colors cursor-pointer ${
-                isActive
-                  ? isChessCom
-                    ? 'text-[#81b64c] font-bold'
-                    : 'text-[#3692e7] font-bold'
-                  : 'text-zinc-500 hover:text-zinc-300'
-              }`}
-            >
-              <Icon className="w-4 h-4" />
-              <span className="truncate max-w-[54px]">{item.label.split(' ')[0]}</span>
-            </button>
-          );
-        })}
+      <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-[#1a1815]/95 backdrop-blur-md border-t border-[#302e2b] flex items-center justify-around py-2 px-2 text-[10px]">
+        <button
+          type="button"
+          onClick={() => setActiveTab('analysis')}
+          className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-lg transition-colors cursor-pointer ${
+            activeTab === 'analysis'
+              ? isChessCom
+                ? 'text-[#81b64c] font-bold'
+                : 'text-[#3692e7] font-bold'
+              : 'text-zinc-500 hover:text-zinc-300'
+          }`}
+        >
+          <Swords className="w-4 h-4" />
+          <span>Обзор</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            if (activeTab === 'analysis') {
+              setActiveTab('analysisBoard');
+            }
+            setIsMobileMenuOpen(true);
+            setIsMobileToolsAccordionOpen(true);
+          }}
+          className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-lg transition-colors cursor-pointer ${
+            isToolActive
+              ? isChessCom
+                ? 'text-[#81b64c] font-bold'
+                : 'text-[#3692e7] font-bold'
+              : 'text-zinc-500 hover:text-zinc-300'
+          }`}
+        >
+          <Wrench className="w-4 h-4" />
+          <span>{currentActiveTool ? currentActiveTool.label.split(' ')[0] : 'Инструменты'}</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            if (user) {
+              setIsProfileModalOpen(true);
+            } else {
+              router.push('/auth');
+            }
+          }}
+          className="flex flex-col items-center gap-0.5 px-3 py-1 rounded-lg text-zinc-500 hover:text-zinc-300 transition-colors cursor-pointer"
+        >
+          <User className="w-4 h-4" />
+          <span>{user ? 'Профиль' : 'Войти'}</span>
+        </button>
+
         <button
           type="button"
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          className="flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg text-zinc-500 hover:text-zinc-300 transition-colors cursor-pointer"
+          className="flex flex-col items-center gap-0.5 px-3 py-1 rounded-lg text-zinc-500 hover:text-zinc-300 transition-colors cursor-pointer"
         >
           <Menu className="w-4 h-4" />
-          <span>Ещё</span>
+          <span>Меню</span>
         </button>
       </nav>
 
