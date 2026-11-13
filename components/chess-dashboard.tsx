@@ -27,6 +27,7 @@ import {
   Swords,
   Trophy,
   User,
+  Wrench,
   XCircle,
   Zap,
 } from 'lucide-react';
@@ -215,6 +216,13 @@ export function ChessDashboard({
           </a>
 
           <div className="flex items-center gap-2 sm:gap-3 text-xs">
+            <Link
+              href="/tools"
+              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#a855f7]/30 bg-[#a855f7]/10 hover:bg-[#a855f7]/20 text-[#a855f7] font-medium transition-all"
+            >
+              <Wrench className="w-3.5 h-3.5" />
+              <span>Инструменты</span>
+            </Link>
             <Link
               href="/for-trainers"
               className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#fbbf24]/30 bg-[#fbbf24]/10 hover:bg-[#fbbf24]/20 text-[#fbbf24] font-medium transition-all"
@@ -892,25 +900,8 @@ export function ChessDashboard({
             <span className="text-zinc-500">•</span>
             <span>Анализ шахматных партий & AI-наставник</span>
           </div>
-          <div className="flex items-center gap-3">
-            <span>Открытые API:</span>
-            <a
-              href="https://lichess.org/api"
-              target="_blank"
-              rel="noopener noreferrer"
-              className={`${isChessCom ? 'hover:text-[#81b64c]' : 'hover:text-[#3692e7]'} transition-colors`}
-            >
-              Lichess
-            </a>
-            <span>•</span>
-            <a
-              href="https://www.chess.com/news/view/published-data-api"
-              target="_blank"
-              rel="noopener noreferrer"
-              className={`${isChessCom ? 'hover:text-[#81b64c]' : 'hover:text-[#3692e7]'} transition-colors`}
-            >
-              Chess.com
-            </a>
+          <div className="text-zinc-600 text-[11px]">
+            © {new Date().getFullYear()} ChessCheese — все права защищены
           </div>
         </div>
       </footer>

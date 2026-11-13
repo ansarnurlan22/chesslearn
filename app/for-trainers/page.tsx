@@ -129,12 +129,18 @@ export default function ForTrainersPage() {
             <Logo size="md" />
           </Link>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4">
             <Link
               href="/"
               className="hidden sm:inline-flex text-sm text-[#c3c2c1] hover:text-white transition-colors"
             >
               Анализ партий
+            </Link>
+            <Link
+              href="/tools"
+              className="hidden sm:inline-flex text-sm text-[#a855f7] hover:text-[#c084fc] font-medium transition-colors"
+            >
+              Инструменты
             </Link>
             <Link
               href="/auth"
