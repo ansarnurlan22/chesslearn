@@ -5,11 +5,17 @@ import { ChessViewer } from '@/components/chess-viewer';
 import { GameReview } from '@/components/game-review';
 import { Logo } from '@/components/logo';
 import { StudentProfileModal } from '@/components/student-profile-modal';
+import { AnalysisBoard } from '@/components/tools/analysis-board';
+import { BoardEditor } from '@/components/tools/board-editor';
+import { BoardSetupDrill } from '@/components/tools/board-setup-drill';
 import { ChessClock } from '@/components/tools/chess-clock';
+import { ChesscomStatus } from '@/components/tools/chesscom-status';
 import { EloCalculator } from '@/components/tools/elo-calculator';
 import { FenAnalyzer } from '@/components/tools/fen-analyzer';
 import { OpeningExplorer } from '@/components/tools/opening-explorer';
 import { PgnAnalyzer } from '@/components/tools/pgn-analyzer';
+import { PieceMovesDrill } from '@/components/tools/piece-moves-drill';
+import { RoundRobinGenerator } from '@/components/tools/round-robin-generator';
 import { useAuth } from '@/hooks/use-auth';
 import type { ChessPlatform, UnifiedGame, UnifiedPlayerProfile } from '@/lib/api/types';
 import { CLASSIFICATION_META } from '@/lib/chess-classifier';
@@ -22,7 +28,9 @@ import {
   Calendar,
   CheckCircle2,
   Clock,
+  Compass,
   Crown,
+  Edit2,
   ExternalLink,
   FileText,
   Flame,
@@ -35,8 +43,10 @@ import {
   Search,
   Sparkles,
   Swords,
+  Target,
   Trophy,
   User,
+  Users,
   X,
   XCircle,
   Zap,
@@ -45,15 +55,29 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useState, useTransition } from 'react';
 
-export type DashboardTab = 'analysis' | 'openings' | 'fen' | 'pgn' | 'elo' | 'clock';
+export type DashboardTab =
+  | 'analysis'
+  | 'analysisBoard'
+  | 'editor'
+  | 'boardSetup'
+  | 'pieceMoves'
+  | 'elo'
+  | 'clock'
+  | 'roundRobin'
+  | 'openings'
+  | 'status';
 
 const NAV_ITEMS: { id: DashboardTab; label: string; icon: React.ElementType; badge?: string }[] = [
   { id: 'analysis', label: 'Анализ партий', icon: Swords },
-  { id: 'openings', label: 'Дебюты', icon: BookOpen, badge: '200+' },
-  { id: 'fen', label: 'FEN Анализ', icon: Scan },
-  { id: 'pgn', label: 'PGN Анализ', icon: FileText },
-  { id: 'elo', label: 'ELO Калькулятор', icon: Calculator },
+  { id: 'analysisBoard', label: 'Доска анализа', icon: Compass, badge: 'Stockfish 19' },
+  { id: 'editor', label: 'Редактор доски', icon: Edit2 },
+  { id: 'boardSetup', label: 'Расстановка доски', icon: Trophy, badge: 'Спринт' },
+  { id: 'pieceMoves', label: 'Ходы фигур', icon: Target, badge: 'Тренажёр' },
+  { id: 'elo', label: 'ELO / FIDE Калькулятор', icon: Calculator },
   { id: 'clock', label: 'Шахматные часы', icon: Clock },
+  { id: 'roundRobin', label: 'Генератор турниров', icon: Users, badge: 'Бергер' },
+  { id: 'openings', label: 'Дебютный справочник', icon: BookOpen, badge: '200+' },
+  { id: 'status', label: 'Статус Chess.com', icon: Globe },
 ];
 
 export interface ChessDashboardProps {
@@ -79,15 +103,27 @@ export function ChessDashboard({
   const tabParam = searchParams?.get('tab') as DashboardTab | null;
   const [activeTab, setActiveTab] = useState<DashboardTab>(tabParam || 'analysis');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [analysisFen, setAnalysisFen] = useState<string | undefined>(undefined);
+  const [editorFen, setEditorFen] = useState<string | undefined>(undefined);
   const { user, profile: authProfile, signOut } = useAuth();
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [platform, setPlatform] = useState<ChessPlatform>(initialPlatform);
   const [usernameInput, setUsernameInput] = useState(initialUsername);
   const [isPending, startTransition] = useTransition();
 
+  const handleEditBoard = (fenToEdit: string) => {
+    setEditorFen(fenToEdit);
+    setActiveTab('editor');
+  };
+
+  const handleAnalyzePosition = (fenToAnalyze: string) => {
+    setAnalysisFen(fenToAnalyze);
+    setActiveTab('analysisBoard');
+  };
+
   // Sync activeTab when query param changes
   useEffect(() => {
-    if (tabParam && ['analysis', 'openings', 'fen', 'pgn', 'elo', 'clock'].includes(tabParam)) {
+    if (tabParam) {
       setActiveTab(tabParam);
     }
   }, [tabParam]);
@@ -1106,6 +1142,86 @@ export function ChessDashboard({
       </main>
       )}
 
+        {/* Tab: Analysis Board (Interactive Stockfish 19 Lite Board) */}
+        {activeTab === 'analysisBoard' && (
+          <main className="flex-1 w-full max-w-5xl mx-auto px-4 sm:px-6 py-8">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 rounded-xl bg-[#81b64c]/15 border border-[#81b64c]/30 flex items-center justify-center text-[#81b64c]">
+                <Compass className="w-5 h-5" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-black text-white">Доска интерактивного анализа</h1>
+                <p className="text-xs text-zinc-500">
+                  Играйте ходы на доске, получайте шкалу перевеса и оценку вариантов Stockfish 19 Lite
+                </p>
+              </div>
+            </div>
+            <div className="border border-[#302e2b] rounded-3xl bg-[#211f1c] p-6 shadow-xl">
+              <AnalysisBoard initialFen={analysisFen} onEditBoard={handleEditBoard} />
+            </div>
+          </main>
+        )}
+
+        {/* Tab: Board Editor */}
+        {activeTab === 'editor' && (
+          <main className="flex-1 w-full max-w-5xl mx-auto px-4 sm:px-6 py-8">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                <Edit2 className="w-5 h-5" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-black text-white">Редактор доски (Board Editor)</h1>
+                <p className="text-xs text-zinc-500">
+                  Расставьте любую позицию из палитры фигур и запустите анализ в один клик
+                </p>
+              </div>
+            </div>
+            <div className="border border-[#302e2b] rounded-3xl bg-[#211f1c] p-6 shadow-xl">
+              <BoardEditor initialFen={editorFen} onAnalyzePosition={handleAnalyzePosition} />
+            </div>
+          </main>
+        )}
+
+        {/* Tab: Board Setup Drill */}
+        {activeTab === 'boardSetup' && (
+          <main className="flex-1 w-full max-w-4xl mx-auto px-4 sm:px-6 py-8">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                <Trophy className="w-5 h-5" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-black text-white">Спринт расстановки доски (Setup Sprint)</h1>
+                <p className="text-xs text-zinc-500">
+                  Тренируйтесь расставлять шахматную доску на скорость без ошибок
+                </p>
+              </div>
+            </div>
+            <div className="border border-[#302e2b] rounded-3xl bg-[#211f1c] p-6 shadow-xl">
+              <BoardSetupDrill />
+            </div>
+          </main>
+        )}
+
+        {/* Tab: Piece Moves Drill */}
+        {activeTab === 'pieceMoves' && (
+          <main className="flex-1 w-full max-w-4xl mx-auto px-4 sm:px-6 py-8">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                <Target className="w-5 h-5" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-black text-white">Тренажёр ходов фигур (Piece Moves)</h1>
+                <p className="text-xs text-zinc-500">
+                  Найдите все возможные поля для хода фигуры. Берегите жизни!
+                </p>
+              </div>
+            </div>
+            <div className="border border-[#302e2b] rounded-3xl bg-[#211f1c] p-6 shadow-xl">
+              <PieceMovesDrill />
+            </div>
+          </main>
+        )}
+
         {/* Tab: Openings */}
         {activeTab === 'openings' && (
           <main className="flex-1 w-full max-w-4xl mx-auto px-4 sm:px-6 py-8">
@@ -1124,54 +1240,18 @@ export function ChessDashboard({
           </main>
         )}
 
-        {/* Tab: FEN Analyzer */}
-        {activeTab === 'fen' && (
-          <main className="flex-1 w-full max-w-3xl mx-auto px-4 sm:px-6 py-8">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 rounded-xl bg-[#a855f7]/15 border border-[#a855f7]/30 flex items-center justify-center text-[#a855f7]">
-                <Scan className="w-5 h-5" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-black text-white">FEN Анализатор позиции</h1>
-                <p className="text-xs text-zinc-500">Глубокий анализ позиции движком Stockfish 19 Lite</p>
-              </div>
-            </div>
-            <div className="border border-[#302e2b] rounded-2xl bg-[#211f1c] p-6 shadow-md">
-              <FenAnalyzer />
-            </div>
-          </main>
-        )}
-
-        {/* Tab: PGN Analyzer */}
-        {activeTab === 'pgn' && (
-          <main className="flex-1 w-full max-w-3xl mx-auto px-4 sm:px-6 py-8">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 rounded-xl bg-[#a855f7]/15 border border-[#a855f7]/30 flex items-center justify-center text-[#a855f7]">
-                <FileText className="w-5 h-5" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-black text-white">PGN Анализатор партий</h1>
-                <p className="text-xs text-zinc-500">
-                  Полный разбор партии с точностью и комментариями от Stockfish 19 Lite
-                </p>
-              </div>
-            </div>
-            <div className="border border-[#302e2b] rounded-2xl bg-[#211f1c] p-6 shadow-md">
-              <PgnAnalyzer />
-            </div>
-          </main>
-        )}
-
         {/* Tab: ELO Calculator */}
         {activeTab === 'elo' && (
-          <main className="flex-1 w-full max-w-2xl mx-auto px-4 sm:px-6 py-8">
+          <main className="flex-1 w-full max-w-3xl mx-auto px-4 sm:px-6 py-8">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
                 <Calculator className="w-5 h-5" />
               </div>
               <div>
-                <h1 className="text-2xl font-black text-white">Калькулятор ELO / Рейтинга</h1>
-                <p className="text-xs text-zinc-500">Расчет изменения рейтинга по официальной формуле FIDE</p>
+                <h1 className="text-2xl font-black text-white">Калькулятор ELO / FIDE</h1>
+                <p className="text-xs text-zinc-500">
+                  Расчет рейтинга для одной партии или многораундового турнира по правилам FIDE
+                </p>
               </div>
             </div>
             <div className="border border-[#302e2b] rounded-2xl bg-[#211f1c] p-6 shadow-md">
@@ -1188,12 +1268,54 @@ export function ChessDashboard({
                 <Clock className="w-5 h-5" />
               </div>
               <div>
-                <h1 className="text-2xl font-black text-white">Шахматные часы</h1>
-                <p className="text-xs text-zinc-500">Цифровой таймер с контролями времени для блица, рапида и пули</p>
+                <h1 className="text-2xl font-black text-white">Шахматные часы онлайн</h1>
+                <p className="text-xs text-zinc-500">
+                  Цифровой таймер с перевёрнутым экраном для соперника за доской
+                </p>
               </div>
             </div>
             <div className="border border-[#302e2b] rounded-2xl bg-[#211f1c] p-6 shadow-md">
               <ChessClock />
+            </div>
+          </main>
+        )}
+
+        {/* Tab: Round Robin Tournament Generator */}
+        {activeTab === 'roundRobin' && (
+          <main className="flex-1 w-full max-w-4xl mx-auto px-4 sm:px-6 py-8">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 rounded-xl bg-blue-500/15 border border-blue-500/30 flex items-center justify-center text-blue-400">
+                <Users className="w-5 h-5" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-black text-white">Генератор турниров (Таблицы Бергера)</h1>
+                <p className="text-xs text-zinc-500">
+                  Расчёт партий по турам для круговых турниров от 3 до 20 участников
+                </p>
+              </div>
+            </div>
+            <div className="border border-[#302e2b] rounded-2xl bg-[#211f1c] p-6 shadow-md">
+              <RoundRobinGenerator />
+            </div>
+          </main>
+        )}
+
+        {/* Tab: Chess.com Status */}
+        {activeTab === 'status' && (
+          <main className="flex-1 w-full max-w-3xl mx-auto px-4 sm:px-6 py-8">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                <Globe className="w-5 h-5" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-black text-white">Статус сервисов Chess.com</h1>
+                <p className="text-xs text-zinc-500">
+                  Мониторинг доступности серверов, публикации партий и публичного API
+                </p>
+              </div>
+            </div>
+            <div className="border border-[#302e2b] rounded-2xl bg-[#211f1c] p-6 shadow-md">
+              <ChesscomStatus />
             </div>
           </main>
         )}
@@ -1215,7 +1337,7 @@ export function ChessDashboard({
 
       {/* Mobile Bottom Navigation Bar (как на мобильной версии chessigma) */}
       <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-[#1a1815]/95 backdrop-blur-md border-t border-[#302e2b] flex items-center justify-around py-2 px-1 text-[10px]">
-        {NAV_ITEMS.map((item) => {
+        {NAV_ITEMS.slice(0, 5).map((item) => {
           const Icon = item.icon;
           const isActive = activeTab === item.id;
           return (
@@ -1232,10 +1354,18 @@ export function ChessDashboard({
               }`}
             >
               <Icon className="w-4 h-4" />
-              <span className="truncate max-w-[50px]">{item.label.split(' ')[0]}</span>
+              <span className="truncate max-w-[54px]">{item.label.split(' ')[0]}</span>
             </button>
           );
         })}
+        <button
+          type="button"
+          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          className="flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg text-zinc-500 hover:text-zinc-300 transition-colors cursor-pointer"
+        >
+          <Menu className="w-4 h-4" />
+          <span>Ещё</span>
+        </button>
       </nav>
 
       {/* Student Profile Modal */}

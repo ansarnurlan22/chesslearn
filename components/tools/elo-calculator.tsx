@@ -1,9 +1,27 @@
 'use client';
 
+import {
+  Award,
+  Calculator,
+  ChevronDown,
+  ChevronUp,
+  Minus,
+  Plus,
+  RotateCcw,
+  Sparkles,
+  Trash2,
+  TrendingDown,
+  TrendingUp,
+} from 'lucide-react';
 import { useState } from 'react';
-import { Calculator, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 
 type Result = 'win' | 'draw' | 'loss';
+
+interface TournamentGame {
+  id: string;
+  opponentRating: number;
+  result: Result;
+}
 
 function calcElo(ra: number, ro: number, result: Result, k: number): {
   expected: number;
@@ -18,100 +36,444 @@ function calcElo(ra: number, ro: number, result: Result, k: number): {
 }
 
 export function EloCalculator() {
+  const [tab, setTab] = useState<'single' | 'fideTournament'>('single');
+
+  // Single game state
   const [myRating, setMyRating] = useState(1500);
   const [oppRating, setOppRating] = useState(1500);
   const [result, setResult] = useState<Result>('win');
   const [kFactor, setKFactor] = useState(20);
+  const [system, setSystem] = useState<'fide' | 'chesscom' | 'lichess'>('fide');
+  const [showAdvanced, setShowAdvanced] = useState(false);
+
+  // Multi-game FIDE tournament state
+  const [fideGames, setFideGames] = useState<TournamentGame[]>([
+    { id: '1', opponentRating: 1520, result: 'win' },
+    { id: '2', opponentRating: 1480, result: 'draw' },
+    { id: '3', opponentRating: 1610, result: 'loss' },
+  ]);
 
   const calc = calcElo(myRating, oppRating, result, kFactor);
+  const myProb = Math.round(calc.expected * 100);
+  const oppProb = 100 - myProb;
 
-  const resultBtns: { value: Result; label: string; color: string }[] = [
-    { value: 'win', label: '✓ Победа', color: 'border-green-500/40 bg-green-500/15 text-green-400 data-[active=true]:bg-green-500 data-[active=true]:text-white' },
-    { value: 'draw', label: '= Ничья', color: 'border-yellow-500/40 bg-yellow-500/15 text-yellow-400 data-[active=true]:bg-yellow-500 data-[active=true]:text-white' },
-    { value: 'loss', label: '✗ Поражение', color: 'border-red-500/40 bg-red-500/15 text-red-400 data-[active=true]:bg-red-500 data-[active=true]:text-white' },
-  ];
+  // Contextual matchup label
+  const matchLabel =
+    myProb > 65
+      ? 'Явный фаворит'
+      : myProb > 52
+      ? 'Небольшой фаворит'
+      : myProb < 35
+      ? 'Значительный андердог'
+      : myProb < 48
+      ? 'Небольшой андердог'
+      : 'Равные шансы';
+
+  // Multi-game FIDE tournament calculations
+  const totalActual = fideGames.reduce(
+    (sum, g) => sum + (g.result === 'win' ? 1 : g.result === 'draw' ? 0.5 : 0),
+    0,
+  );
+  const totalExpected = fideGames.reduce((sum, g) => {
+    // 400-point difference cap rule in FIDE
+    const diff = Math.max(-400, Math.min(400, g.opponentRating - myRating));
+    const exp = 1 / (1 + Math.pow(10, diff / 400));
+    return sum + exp;
+  }, 0);
+
+  const fideDelta = Math.round(kFactor * (totalActual - totalExpected));
+  const fideNewRating = myRating + fideDelta;
+
+  const addFideGame = () => {
+    setFideGames((prev) => [
+      ...prev,
+      { id: String(Date.now()), opponentRating: myRating, result: 'win' },
+    ]);
+  };
+
+  const removeFideGame = (id: string) => {
+    setFideGames((prev) => prev.filter((g) => g.id !== id));
+  };
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="flex flex-col gap-2">
-          <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Мой рейтинг</label>
-          <input
-            type="number"
-            value={myRating}
-            onChange={e => setMyRating(Number(e.target.value))}
-            className="bg-[#161512] border border-[#302e2b] rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:border-[#a855f7]/60 focus:ring-1 focus:ring-[#a855f7]/30 transition-all"
-          />
-        </div>
-        <div className="flex flex-col gap-2">
-          <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Рейтинг соперника</label>
-          <input
-            type="number"
-            value={oppRating}
-            onChange={e => setOppRating(Number(e.target.value))}
-            className="bg-[#161512] border border-[#302e2b] rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:border-[#a855f7]/60 focus:ring-1 focus:ring-[#a855f7]/30 transition-all"
-          />
-        </div>
+    <div className="flex flex-col gap-6 w-full">
+      {/* Tab Switcher: Single game vs FIDE Tournament */}
+      <div className="flex p-1 rounded-2xl bg-[#161512] border border-[#302e2b] self-start">
+        <button
+          type="button"
+          onClick={() => setTab('single')}
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            tab === 'single'
+              ? 'bg-[#81b64c] text-white shadow-sm'
+              : 'text-zinc-400 hover:text-white'
+          }`}
+        >
+          Одна партия
+        </button>
+        <button
+          type="button"
+          onClick={() => setTab('fideTournament')}
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            tab === 'fideTournament'
+              ? 'bg-[#81b64c] text-white shadow-sm'
+              : 'text-zinc-400 hover:text-white'
+          }`}
+        >
+          FIDE Турнир (много партий)
+        </button>
       </div>
 
-      <div className="flex flex-col gap-2">
-        <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Результат</label>
-        <div className="flex gap-2 flex-wrap">
-          {resultBtns.map(btn => (
-            <button
-              key={btn.value}
-              type="button"
-              data-active={result === btn.value}
-              onClick={() => setResult(btn.value)}
-              className={`px-4 py-2 rounded-lg border text-sm font-medium transition-all cursor-pointer ${btn.color}`}
-            >
-              {btn.label}
-            </button>
-          ))}
-        </div>
-      </div>
+      {tab === 'single' ? (
+        <>
+          {/* Win Probability Header */}
+          <div className="rounded-2xl border border-[#302e2b] bg-[#161512] p-5 flex flex-col gap-3">
+            <div className="flex items-center justify-between text-xs font-semibold">
+              <span className="text-zinc-400">Вероятность победы</span>
+              <span className="text-amber-400 uppercase tracking-wider">{matchLabel}</span>
+            </div>
 
-      <div className="flex flex-col gap-2">
-        <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">K-фактор</label>
-        <div className="flex gap-2">
-          {[10, 20, 40].map(k => (
-            <button
-              key={k}
-              type="button"
-              onClick={() => setKFactor(k)}
-              className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-all cursor-pointer ${
-                kFactor === k
-                  ? 'bg-[#a855f7] border-[#a855f7] text-white'
-                  : 'border-[#302e2b] bg-[#161512] text-zinc-400 hover:bg-[#211f1c]'
+            <div className="flex items-center justify-between text-2xl font-black font-mono">
+              <span className="text-emerald-400">{myProb}% Вы</span>
+              <span className="text-zinc-400">{oppProb}% Соперник</span>
+            </div>
+
+            {/* Split probability bar */}
+            <div className="w-full h-3 rounded-full overflow-hidden flex bg-zinc-800">
+              <div
+                className="bg-emerald-500 transition-all duration-300"
+                style={{ width: `${myProb}%` }}
+              />
+              <div
+                className="bg-zinc-600 transition-all duration-300"
+                style={{ width: `${oppProb}%` }}
+              />
+            </div>
+          </div>
+
+          {/* Rating Inputs */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* My rating */}
+            <div className="rounded-2xl border border-[#302e2b] bg-[#161512] p-4 flex flex-col gap-3">
+              <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">
+                Ваш текущий рейтинг
+              </label>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setMyRating((r) => Math.max(100, r - 50))}
+                  className="w-9 h-9 rounded-xl border border-[#302e2b] bg-[#211f1c] hover:bg-[#262421] text-white font-bold text-xs flex items-center justify-center cursor-pointer"
+                >
+                  −50
+                </button>
+                <input
+                  type="number"
+                  value={myRating}
+                  onChange={(e) => setMyRating(Number(e.target.value))}
+                  className="flex-1 bg-[#211f1c] border border-[#302e2b] rounded-xl px-3 py-2 text-center text-white font-mono font-bold text-lg outline-none focus:border-[#81b64c]"
+                />
+                <button
+                  type="button"
+                  onClick={() => setMyRating((r) => Math.min(3200, r + 50))}
+                  className="w-9 h-9 rounded-xl border border-[#302e2b] bg-[#211f1c] hover:bg-[#262421] text-white font-bold text-xs flex items-center justify-center cursor-pointer"
+                >
+                  +50
+                </button>
+              </div>
+              <input
+                type="range"
+                min={400}
+                max={2800}
+                step={10}
+                value={myRating}
+                onChange={(e) => setMyRating(Number(e.target.value))}
+                className="w-full accent-[#81b64c] cursor-pointer"
+              />
+            </div>
+
+            {/* Opponent rating */}
+            <div className="rounded-2xl border border-[#302e2b] bg-[#161512] p-4 flex flex-col gap-3">
+              <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">
+                Рейтинг соперника
+              </label>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setOppRating((r) => Math.max(100, r - 50))}
+                  className="w-9 h-9 rounded-xl border border-[#302e2b] bg-[#211f1c] hover:bg-[#262421] text-white font-bold text-xs flex items-center justify-center cursor-pointer"
+                >
+                  −50
+                </button>
+                <input
+                  type="number"
+                  value={oppRating}
+                  onChange={(e) => setOppRating(Number(e.target.value))}
+                  className="flex-1 bg-[#211f1c] border border-[#302e2b] rounded-xl px-3 py-2 text-center text-white font-mono font-bold text-lg outline-none focus:border-[#81b64c]"
+                />
+                <button
+                  type="button"
+                  onClick={() => setOppRating((r) => Math.min(3200, r + 50))}
+                  className="w-9 h-9 rounded-xl border border-[#302e2b] bg-[#211f1c] hover:bg-[#262421] text-white font-bold text-xs flex items-center justify-center cursor-pointer"
+                >
+                  +50
+                </button>
+              </div>
+              <input
+                type="range"
+                min={400}
+                max={2800}
+                step={10}
+                value={oppRating}
+                onChange={(e) => setOppRating(Number(e.target.value))}
+                className="w-full accent-[#81b64c] cursor-pointer"
+              />
+            </div>
+          </div>
+
+          {/* Result Selector */}
+          <div className="flex flex-col gap-2">
+            <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">
+              Исход партии
+            </span>
+            <div className="grid grid-cols-3 gap-3">
+              {(
+                [
+                  { val: 'win', label: 'Победа', diff: calcElo(myRating, oppRating, 'win', kFactor).delta },
+                  { val: 'draw', label: 'Ничья', diff: calcElo(myRating, oppRating, 'draw', kFactor).delta },
+                  { val: 'loss', label: 'Поражение', diff: calcElo(myRating, oppRating, 'loss', kFactor).delta },
+                ] as const
+              ).map((btn) => (
+                <button
+                  key={btn.val}
+                  type="button"
+                  onClick={() => setResult(btn.val)}
+                  className={`p-4 rounded-2xl border flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${
+                    result === btn.val
+                      ? 'border-[#81b64c] bg-[#81b64c]/15 shadow-md'
+                      : 'border-[#302e2b] bg-[#161512] hover:bg-[#211f1c]'
+                  }`}
+                >
+                  <span className={`text-sm font-bold ${result === btn.val ? 'text-white' : 'text-zinc-300'}`}>
+                    {btn.label}
+                  </span>
+                  <span
+                    className={`text-xs font-mono font-bold ${
+                      btn.diff > 0
+                        ? 'text-emerald-400'
+                        : btn.diff < 0
+                        ? 'text-rose-400'
+                        : 'text-zinc-500'
+                    }`}
+                  >
+                    {btn.diff > 0 ? `+${btn.diff}` : btn.diff} очков
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* New Rating Result Card */}
+          <div className="rounded-3xl border border-[#302e2b] bg-[#161512] p-6 flex flex-col sm:flex-row items-center justify-between gap-6 shadow-xl">
+            <div className="flex flex-col gap-1">
+              <span className="text-xs text-zinc-500 font-semibold uppercase tracking-wider">
+                Новый расчётный рейтинг
+              </span>
+              <div className="flex items-baseline gap-3">
+                <span className="text-4xl font-mono font-black text-white">{calc.newRating}</span>
+                <span className="text-sm font-mono text-zinc-500">
+                  ({myRating} → {calc.newRating})
+                </span>
+              </div>
+            </div>
+
+            <div
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl border font-bold text-sm ${
+                calc.delta > 0
+                  ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400'
+                  : calc.delta < 0
+                  ? 'border-rose-500/30 bg-rose-500/10 text-rose-400'
+                  : 'border-zinc-700 bg-zinc-800 text-zinc-300'
               }`}
             >
-              {k} {k === 10 ? '(Мастер)' : k === 20 ? '(Стандарт)' : '(Новичок)'}
-            </button>
-          ))}
-        </div>
-      </div>
+              {calc.delta > 0 ? (
+                <TrendingUp className="w-4 h-4" />
+              ) : calc.delta < 0 ? (
+                <TrendingDown className="w-4 h-4" />
+              ) : (
+                <Minus className="w-4 h-4" />
+              )}
+              <span>{calc.delta > 0 ? `+${calc.delta}` : calc.delta} очков рейтинга</span>
+            </div>
+          </div>
 
-      <div className="border border-[#302e2b] rounded-xl bg-[#161512] p-5 flex flex-col gap-4">
-        <div className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Результат</div>
-        <div className="grid grid-cols-2 gap-4">
-          <div className="flex flex-col gap-1">
-            <span className="text-xs text-zinc-500">Ожидаемый балл</span>
-            <span className="text-2xl font-bold text-white">{(calc.expected * 100).toFixed(1)}%</span>
-            <span className="text-xs text-zinc-600">вероятность победы</span>
+          {/* Advanced Accordion */}
+          <div className="rounded-2xl border border-[#302e2b] bg-[#161512] p-4 flex flex-col gap-3">
+            <button
+              type="button"
+              onClick={() => setShowAdvanced(!showAdvanced)}
+              className="flex items-center justify-between text-xs font-semibold text-zinc-400 hover:text-white cursor-pointer"
+            >
+              <span>Расширенные настройки (система и K-фактор)</span>
+              {showAdvanced ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            </button>
+
+            {showAdvanced && (
+              <div className="pt-3 border-t border-[#302e2b] flex flex-col gap-4 animate-in fade-in">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs text-zinc-400 font-semibold">Рейтинговая система</label>
+                    <select
+                      value={system}
+                      onChange={(e) => setSystem(e.target.value as 'fide' | 'chesscom' | 'lichess')}
+                      className="bg-[#211f1c] border border-[#302e2b] rounded-xl px-3 py-2 text-xs text-white outline-none"
+                    >
+                      <option value="fide">FIDE (Классика, Рапид, Блиц)</option>
+                      <option value="chesscom">Chess.com Glicko</option>
+                      <option value="lichess">Lichess Glicko-2</option>
+                    </select>
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-zinc-400 font-semibold">K-Фактор: {kFactor}</span>
+                      <span className="text-zinc-500">
+                        {kFactor === 10 ? 'Топ-гроссмейстер' : kFactor === 20 ? 'Стандартный FIDE' : 'Юниоры / Новички'}
+                      </span>
+                    </div>
+                    <input
+                      type="range"
+                      min={10}
+                      max={40}
+                      step={10}
+                      value={kFactor}
+                      onChange={(e) => setKFactor(Number(e.target.value))}
+                      className="w-full accent-[#81b64c] cursor-pointer"
+                    />
+                  </div>
+                </div>
+
+                <div className="p-3 rounded-xl bg-[#211f1c] text-xs font-mono text-zinc-400 leading-relaxed">
+                  Формула FIDE: R_new = {myRating} + {kFactor} × ({calc.actual} − {calc.expected.toFixed(3)}) = {calc.newRating}
+                </div>
+              </div>
+            )}
           </div>
-          <div className="flex flex-col gap-1">
-            <span className="text-xs text-zinc-500">Новый рейтинг</span>
-            <span className="text-2xl font-bold text-white">{calc.newRating}</span>
-            <span className={`text-xs flex items-center gap-1 ${calc.delta > 0 ? 'text-green-400' : calc.delta < 0 ? 'text-red-400' : 'text-zinc-500'}`}>
-              {calc.delta > 0 ? <TrendingUp className="w-3 h-3" /> : calc.delta < 0 ? <TrendingDown className="w-3 h-3" /> : <Minus className="w-3 h-3" />}
-              {calc.delta > 0 ? '+' : ''}{calc.delta} очков
-            </span>
+        </>
+      ) : (
+        /* FIDE Multi-Game Tournament Calculator */
+        <div className="flex flex-col gap-5">
+          <div className="rounded-2xl border border-[#302e2b] bg-[#161512] p-5 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div>
+              <span className="text-xs text-zinc-500 font-semibold uppercase tracking-wider">
+                Итог турнира ({fideGames.length} партий)
+              </span>
+              <div className="flex items-baseline gap-3 mt-1">
+                <span className="text-4xl font-mono font-black text-white">{fideNewRating}</span>
+                <span
+                  className={`text-sm font-mono font-bold ${
+                    fideDelta > 0
+                      ? 'text-emerald-400'
+                      : fideDelta < 0
+                      ? 'text-rose-400'
+                      : 'text-zinc-400'
+                  }`}
+                >
+                  {fideDelta > 0 ? `+${fideDelta}` : fideDelta} очков
+                </span>
+              </div>
+            </div>
+
+            <div className="text-xs text-zinc-400 flex flex-col gap-0.5 text-right font-mono">
+              <span>
+                Очки: {totalActual} из {fideGames.length}
+              </span>
+              <span>Ожидалось (Exp): {totalExpected.toFixed(2)}</span>
+              <span>K-фактор: {kFactor}</span>
+            </div>
+          </div>
+
+          {/* Games table */}
+          <div className="rounded-2xl border border-[#302e2b] bg-[#161512] p-4 flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">
+                Сыгранные партии
+              </span>
+              <button
+                type="button"
+                onClick={addFideGame}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#81b64c] hover:bg-[#74a643] text-white text-xs font-bold transition-all cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Добавить партию</span>
+              </button>
+            </div>
+
+            <div className="flex flex-col divide-y divide-[#302e2b] text-xs">
+              {fideGames.map((g, idx) => (
+                <div
+                  key={g.id}
+                  className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-zinc-500 font-mono w-6">#{idx + 1}</span>
+                    <span className="text-zinc-400">Рейтинг соперника:</span>
+                    <input
+                      type="number"
+                      value={g.opponentRating}
+                      onChange={(e) => {
+                        const val = Number(e.target.value);
+                        setFideGames((prev) =>
+                          prev.map((game) =>
+                            game.id === g.id ? { ...game, opponentRating: val } : game,
+                          ),
+                        );
+                      }}
+                      className="w-24 bg-[#211f1c] border border-[#302e2b] rounded-lg px-2.5 py-1 text-white font-mono text-xs outline-none"
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <div className="flex p-0.5 rounded-lg bg-[#211f1c] border border-[#302e2b]">
+                      {(['win', 'draw', 'loss'] as Result[]).map((r) => (
+                        <button
+                          key={r}
+                          type="button"
+                          onClick={() => {
+                            setFideGames((prev) =>
+                              prev.map((game) =>
+                                game.id === g.id ? { ...game, result: r } : game,
+                              ),
+                            );
+                          }}
+                          className={`px-2.5 py-1 rounded text-xs font-semibold transition-all cursor-pointer ${
+                            g.result === r
+                              ? r === 'win'
+                                ? 'bg-emerald-500 text-white font-bold'
+                                : r === 'draw'
+                                ? 'bg-amber-500 text-white font-bold'
+                                : 'bg-rose-500 text-white font-bold'
+                              : 'text-zinc-400 hover:text-white'
+                          }`}
+                        >
+                          {r === 'win' ? '1.0' : r === 'draw' ? '0.5' : '0.0'}
+                        </button>
+                      ))}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => removeFideGame(g.id)}
+                      className="p-1.5 rounded-lg text-zinc-500 hover:text-rose-400 cursor-pointer"
+                      title="Удалить"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
-        <div className="pt-3 border-t border-[#302e2b] text-xs text-zinc-600">
-          Формула: Ra + K × (S − E) = {myRating} + {kFactor} × ({calc.actual} − {calc.expected.toFixed(3)}) = <span className="text-white font-semibold">{calc.newRating}</span>
-        </div>
-      </div>
+      )}
     </div>
   );
 }
