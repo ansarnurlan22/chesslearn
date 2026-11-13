@@ -1,5 +1,10 @@
 import { classifyGameWithEngine } from '@/lib/engine/classification';
-import type { GameReviewData } from '@/types/review';
+import type {
+  CriticalMove,
+  GameReviewData,
+  MoveAnalysis,
+  MoveTypeSummary,
+} from '@/types/review';
 import { NextResponse } from 'next/server';
 
 interface AnalyzeRequestBody {
@@ -8,11 +13,98 @@ interface AnalyzeRequestBody {
   username?: string;
 }
 
-const CANDIDATE_MODELS = [
-  'gemini-2.0-flash',
-  'gemini-1.5-flash',
-  'gemini-2.5-flash',
-];
+/**
+ * Generates an authoritative, game-specific summary and key takeaway
+ * computed 100% directly from Stockfish 19 Lite evaluation metrics.
+ */
+function buildStockfishSummaryAndTakeaway({
+  username,
+  playerColor,
+  whiteAccuracy,
+  blackAccuracy,
+  whiteStats,
+  blackStats,
+  criticalMoves,
+  allMoves,
+}: {
+  username: string;
+  playerColor: 'white' | 'black';
+  whiteAccuracy: number;
+  blackAccuracy: number;
+  whiteStats: MoveTypeSummary;
+  blackStats: MoveTypeSummary;
+  criticalMoves: CriticalMove[];
+  allMoves: MoveAnalysis[];
+}): { summary: string; keyTakeaway: string } {
+  const userAccuracy = playerColor === 'white' ? whiteAccuracy : blackAccuracy;
+  const oppAccuracy = playerColor === 'white' ? blackAccuracy : whiteAccuracy;
+  const userStats = playerColor === 'white' ? whiteStats : blackStats;
+
+  const userBlunders = allMoves.filter(
+    (m) => m.color === playerColor && m.type === 'blunder',
+  );
+  const userMistakes = allMoves.filter(
+    (m) => m.color === playerColor && m.type === 'mistake',
+  );
+  const userInaccuracies = allMoves.filter(
+    (m) => m.color === playerColor && m.type === 'inaccuracy',
+  );
+
+  // 1. Determine key turning point from engine critical moves
+  let turningPointSentence = '';
+  if (criticalMoves.length > 0) {
+    const tp = criticalMoves[0];
+    const tpColorName = tp.color === 'white' ? 'Белых' : 'Чёрных';
+    const tpMoveNotation = `${tp.moveNumber}${tp.color === 'white' ? '.' : '...'}${tp.san}`;
+    let tpDesc = 'решающим моментом';
+    if (tp.type === 'blunder') tpDesc = 'грубым тактическим зевком';
+    else if (tp.type === 'mistake') tpDesc = 'ощутимой позиционной ошибкой';
+    else if (tp.type === 'brilliant') tpDesc = 'блестящей тактической жертвой';
+
+    const betterAlternative = tp.betterMove
+      ? ` В качестве сильнейшей альтернативы Stockfish 19 Lite рекомендовал ход ${tp.betterMove}${tp.pvLine ? ` с линией ${tp.pvLine}` : ''}.`
+      : '';
+
+    turningPointSentence = ` Главным переломным моментом стал ход ${tpMoveNotation} (${tpColorName}), оказавшийся ${tpDesc} (оценка ${tp.score || '0.0'}).${betterAlternative}`;
+  } else {
+    turningPointSentence =
+      ' Партия развивалась в равной борьбе, где обе стороны демонстрировали дисциплинированную дебютную и тактическую игру.';
+  }
+
+  // 2. Build complete summary
+  const summary = `Партия ${username} (${playerColor === 'white' ? 'Белые' : 'Чёрные'}) полностью рассчитана движком Stockfish 19 Lite. Точность игры составила ${userAccuracy}% против ${oppAccuracy}% у соперника.${turningPointSentence} В активе ${username}: ${userStats.best + userStats.great} сильнейших ходов Stockfish, ${userStats.good} надёжных решений, ${userStats.inaccuracy} неточностей, ${userStats.mistake} ошибок и ${userStats.blunder} зевков.`;
+
+  // 3. Build practical key takeaway based on error profile
+  let keyTakeaway = '';
+  if (userBlunders.length > 0) {
+    const sample = userBlunders[0];
+    const blunderMovesStr = userBlunders
+      .slice(0, 3)
+      .map((b) => `${b.moveNumber}${b.color === 'white' ? '.' : '...'}${b.san}`)
+      .join(', ');
+
+    keyTakeaway = `Главный практический урок для ${username}: уделите пристальное внимание тактической безопасности на ходах ${blunderMovesStr}. В позиции после хода ${sample.san} Stockfish 19 Lite настаивал на продолжении ${sample.betterMove || 'более надёжном плане'}. Перед каждым ходом обязательно сканируйте вилки, сквозные удары и незащищённые фигуры.`;
+  } else if (userMistakes.length > 0) {
+    const sample = userMistakes[0];
+    const mistakeMovesStr = userMistakes
+      .slice(0, 3)
+      .map((m) => `${m.moveNumber}${m.color === 'white' ? '.' : '...'}${m.san}`)
+      .join(', ');
+
+    keyTakeaway = `Главный практический урок для ${username}: тактическая основа на высоком уровне, но позиционные решения на ходах ${mistakeMovesStr} позволили сопернику навязать давление. В частности, на ${sample.moveNumber}-м ходу точнее было ${sample.betterMove || 'активизировать фигуры'}. Укрепляйте фигурные форпосты и избегайте уступки центра.`;
+  } else if (userInaccuracies.length > 0) {
+    const inaccMovesStr = userInaccuracies
+      .slice(0, 3)
+      .map((i) => `${i.moveNumber}${i.color === 'white' ? '.' : '...'}${i.san}`)
+      .join(', ');
+
+    keyTakeaway = `Отличная дисциплина ходов без грубых тактических провалов! Единственный резерв для роста — устранение микро-неточностей на ходах ${inaccMovesStr}. Развивайте активность ладей по открытым вертикалям, чтобы реализовывать позиционный перевес на уровне первой линии Stockfish 19 Lite.`;
+  } else {
+    keyTakeaway = `Гроссмейстерский уровень точности (${userAccuracy}%)! Ни одного зевка или ошибки за всю партию — эталонное следование первой линии шахматного движка Stockfish 19 Lite.`;
+  }
+
+  return { summary, keyTakeaway };
+}
 
 export async function POST(request: Request) {
   let body: AnalyzeRequestBody = { pgn: '' };
@@ -25,143 +117,21 @@ export async function POST(request: Request) {
   const { pgn = '', playerColor = 'white', username = 'Игрок' } = body;
 
   try {
-    // 1. Stockfish 19 Lite performs 100% of the mathematical calculations (eval, CPL, classifications)
+    // 1. Stockfish 19 Lite performs 100% of the mathematical calculations
+    // (evaluations, CPL loss, move classifications, accuracy formula, and PV lines)
     const engineResult = await classifyGameWithEngine(pgn);
 
-    const userAccuracy =
-      playerColor === 'white'
-        ? engineResult.accuracy.white
-        : engineResult.accuracy.black;
-
-    const userStats =
-      playerColor === 'white' ? engineResult.stats.white : engineResult.stats.black;
-
-    // Default summaries in case Gemini is not configured or encounters an issue
-    let summary = `Партия ${username} (${playerColor === 'white' ? 'Белые' : 'Чёрные'}) сыграна с точностью ${userAccuracy}%. Движок Stockfish 19 Lite зафиксировал ${userStats.blunder} зевков, ${userStats.mistake} ошибок и ${userStats.best + userStats.great} сильнейших ходов.`;
-    let keyTakeaway =
-      userStats.blunder > 0
-        ? 'Уделяйте больше внимания проверке незащищенных фигур и прямым тактическим угрозам соперника перед каждым ходом.'
-        : 'Отличная дисциплина ходов! Для дальнейшего прогресса развивайте давление по открытым вертикалям и форпостам в центре.';
-
-    const apiKey = process.env.GEMINI_API_KEY;
-
-    // 2. Gemini acts strictly as a natural language translator for the precalculated facts
-    if (apiKey && engineResult.criticalMoves.length > 0) {
-      try {
-        const criticalFacts = engineResult.criticalMoves
-          .map(
-            (cm) =>
-              `- Ход ${cm.moveNumber} (ply ${cm.ply}, ${cm.color === 'white' ? 'Белые' : 'Чёрные'}): ${cm.san}. Статус: ${cm.type}. Лучший ход Stockfish 19 Lite: ${cm.betterMove}. Оценка: ${cm.score || 'Равенство'}. PV: ${cm.pvLine || '-'}`,
-          )
-          .join('\n');
-
-        const prompt = `Ты — шахматный гроссмейстер и главный аналитический движок платформы ChessCheese.
-Все расчёты УЖЕ сделаны движком Stockfish 19 Lite. Твоя цель — выступить переводчиком на живой гроссмейстерский язык, опираясь исключительно на данные Stockfish 19 Lite.
-
-ВХОДНЫЕ ДАННЫЕ:
-- Игрок: "${username}" играл за ${playerColor === 'white' ? 'Белых' : 'Чёрных'}.
-- Точность игры: Белые ${engineResult.accuracy.white}%, Чёрные ${engineResult.accuracy.black}%.
-- Статистика ходов:
-  Белые: ${JSON.stringify(engineResult.stats.white)}
-  Чёрные: ${JSON.stringify(engineResult.stats.black)}
-- Ключевые ходы партии от Stockfish 19 Lite:
-${criticalFacts}
-
-ОБЯЗАТЕЛЬНЫЙ ЭТАП ПРОВЕРКИ:
-Перед формированием ответа ты ОБЯЗАН провести внутреннюю валидацию каждого ключевого хода:
-1. Тип оценки: Является ли оценка матовой серией (M/-M)?
-   - Если ДА: объявляй форсированный мат, без упоминаний «материального перевеса» или «позиционного давления».
-   - Если НЕТ: зафиксируй числовой перевес в пешках.
-2. Проверка тактики: Содержит ли PV-линия форсированные взятия, шахи или жертвы?
-3. Оценка хода игрока: Сравни ход игрока с лучшим ходом Stockfish 19 Lite.
-
-ПРАВИЛА:
-1. ПРИОРИТЕТ МАТА: При наличии мата первой строкой объявляется форсированный финал.
-2. СТРОГАЯ ВЕРНОСТЬ ЛИНИИ ДВИЖКА: Запрещено придумывать ходы, которых нет в PV-линии.
-3. ТОЧНАЯ ТЕРМИНОЛОГИЯ: форточка, слабая диагональ, связка, перегрузка, спёртый мат, линейный удар, форсирование.
-4. СТИЛЬ: Уверенный, конструктивный, профессиональный, дружелюбный, с лёгким шахматным юмором.
-
-ЗАДАЧА — сгенерировать строго следующий JSON:
-1. summary (2-3 предложения): живое резюме партии с указанием переломного момента. Для каждого критического хода укажи вердикт (Форсированный мат / Грубый зевок / Решающее преимущество / Равная борьба).
-2. keyTakeaway: главный практический урок для "${username}" на основе допущенных неточностей. Укажи на какую деталь геометрии доски или тактический мотив стоило обратить внимание.
-3. criticalMoveComments: для каждого ключевого хода — живой гроссмейстерский комментарий с пошаговым разбором PV-линии Stockfish 19 Lite.
-
-Верни СТРОГИЙ JSON следующего формата:
-{
-  "summary": "<Текст резюме>",
-  "keyTakeaway": "<Главный практический совет>",
-  "criticalMoveComments": [
-    {
-      "ply": <число ply>,
-      "comment": "<Живое тренерское объяснение хода с разбором PV-линии>"
-    }
-  ]
-}`;
-
-        for (const model of CANDIDATE_MODELS) {
-          try {
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-            const geminiRes = await fetch(url, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                contents: [{ parts: [{ text: prompt }] }],
-                generationConfig: {
-                  responseMimeType: 'application/json',
-                  temperature: 0.3,
-                },
-              }),
-            });
-
-            if (geminiRes.ok) {
-              const data = await geminiRes.json();
-              const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-              if (text) {
-                const parsed = JSON.parse(text) as {
-                  summary?: string;
-                  keyTakeaway?: string;
-                  criticalMoveComments?: Array<{ ply: number; comment: string }>;
-                };
-
-                if (parsed.summary) summary = parsed.summary;
-                if (parsed.keyTakeaway) keyTakeaway = parsed.keyTakeaway;
-
-                if (Array.isArray(parsed.criticalMoveComments)) {
-                  const commentsMap = new Map<number, string>();
-                  for (const c of parsed.criticalMoveComments) {
-                    if (c && typeof c.ply === 'number' && c.comment) {
-                      commentsMap.set(c.ply, c.comment);
-                    }
-                  }
-
-                  // Update critical moves with Gemini's lively comments
-                  for (const cm of engineResult.criticalMoves) {
-                    const aiComment = commentsMap.get(cm.ply);
-                    if (aiComment) {
-                      cm.comment = aiComment;
-                    }
-                  }
-
-                  // Also update allMoves
-                  for (const mv of engineResult.moves) {
-                    const aiComment = commentsMap.get(mv.ply);
-                    if (aiComment) {
-                      mv.comment = aiComment;
-                    }
-                  }
-                }
-
-                break; // successfully translated
-              }
-            }
-          } catch {
-            // try next model or fallback
-          }
-        }
-      } catch {
-        // use engine default summary
-      }
-    }
+    // 2. Generate detailed engine summary & key takeaways based directly on Stockfish results
+    const { summary, keyTakeaway } = buildStockfishSummaryAndTakeaway({
+      username,
+      playerColor,
+      whiteAccuracy: engineResult.accuracy.white,
+      blackAccuracy: engineResult.accuracy.black,
+      whiteStats: engineResult.stats.white,
+      blackStats: engineResult.stats.black,
+      criticalMoves: engineResult.criticalMoves,
+      allMoves: engineResult.moves,
+    });
 
     const responseData: GameReviewData = {
       accuracy: engineResult.accuracy,

@@ -237,7 +237,7 @@ export function ChessViewer({
     onStepChange?.(currentStep);
   }, [currentStep, onStepChange]);
 
-  // Notify parent on full game state change (for AI chat mentor)
+  // Notify parent on full game state change (for Stockfish chat mentor)
   useEffect(() => {
     onGameStateChange?.({
       fen,

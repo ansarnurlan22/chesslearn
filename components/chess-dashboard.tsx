@@ -1114,9 +1114,9 @@ export function ChessDashboard({
           <section className="flex flex-col items-center text-center max-w-3xl mx-auto px-4">
             {/* Main Title */}
             <h1 className="text-4xl sm:text-6xl font-black tracking-tight text-white mb-4 leading-tight">
-              Анализ партий{' '}
+              Бесплатный анализ{' '}
               <span className={isChessCom ? 'text-[#81b64c]' : 'text-[#3692e7]'}>
-                нового поколения
+                каждый день
               </span>
             </h1>
 
@@ -1444,7 +1444,7 @@ export function ChessDashboard({
 
               {/* Main Layout: 2 columns (Left: Matches, Right: Board + Review) */}
               <section className="flex flex-col lg:grid lg:grid-cols-12 gap-8 items-start">
-                {/* Interactive Chessboard & AI Game Review */}
+                {/* Interactive Chessboard & Stockfish Game Review */}
                 <div
                   className={`w-full order-1 lg:order-2 ${
                     isLargeBoard ? 'lg:col-span-8 xl:col-span-9' : 'lg:col-span-7'
@@ -1497,7 +1497,7 @@ export function ChessDashboard({
                         />
                       </div>
 
-                      {/* Unified Review & AI Coach Chat Panel */}
+                      {/* Unified Review & Stockfish Mentor Chat Panel */}
                       <div className="w-full flex flex-col gap-3">
                         {/* Tab Switcher */}
                         <div
@@ -1926,7 +1926,7 @@ export function ChessDashboard({
             <div className="flex items-center gap-2">
               <Logo size="sm" />
               <span className="text-zinc-500">•</span>
-              <span>Анализ шахматных партий & AI-наставник • Stockfish 19 Lite</span>
+              <span>Анализ шахматных партий • Stockfish 19 Lite</span>
             </div>
             <div className="text-zinc-600 text-[11px]">
               © {new Date().getFullYear()} ChessCheese — все права защищены

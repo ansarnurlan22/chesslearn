@@ -14,6 +14,10 @@ export interface Profile {
   chess_username: string | null;
   chess_platform: ChessPlatform | null;
   avatar_url: string | null;
+  puzzle_streak?: number;
+  puzzle_best_streak?: number;
+  puzzle_last_solved_date?: string | null;
+  puzzle_solved_days?: number[];
   created_at: string;
   updated_at: string;
 }
@@ -50,6 +54,14 @@ export interface GroupMemberWithProfile extends GroupMember {
 export type ProfileUpdate = Partial<
   Pick<
     Profile,
-    "full_name" | "chess_username" | "chess_platform" | "avatar_url" | "role"
+    | "full_name"
+    | "chess_username"
+    | "chess_platform"
+    | "avatar_url"
+    | "role"
+    | "puzzle_streak"
+    | "puzzle_best_streak"
+    | "puzzle_last_solved_date"
+    | "puzzle_solved_days"
   >
 >;

@@ -14,9 +14,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'ChessCheese — Умный анализ твоих шахматных партий и AI-наставник',
+  title: 'ChessCheese — Бесплатный анализ шахматных партий • Stockfish 19 Lite',
   description:
-    'Анализируй партии с Chess.com и Lichess, общайся с AI-гроссмейстером ChessCheese Bot и разбирай ходы на интерактивной доске.',
+    'Анализируй партии с Chess.com и Lichess, изучай оценки Stockfish 19 Lite и разбирай ходы на интерактивной доске.',
 };
 
 export default function RootLayout({

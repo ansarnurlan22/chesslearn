@@ -24,8 +24,11 @@ export function DailyPuzzle() {
   const {
     currentPuzzle,
     selectedDay,
+    todayDay,
     selectDay,
     solvedDays,
+    currentStreak,
+    bestStreak,
     dailyPuzzles,
     currentFen,
     boardOrientation,
@@ -37,10 +40,11 @@ export function DailyPuzzle() {
     requestNextHint,
     resetPuzzle,
     hints,
-  } = usePuzzleSolver(13);
+  } = usePuzzleSolver();
 
-  // Generate 30 days calendar for November
-  const daysInMonth = 30;
+  const now = new Date();
+  const currentMonthName = now.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' }).toUpperCase();
+  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
   const daysArray = Array.from({ length: daysInMonth }, (_, i) => i + 1);
 
   return (
@@ -57,22 +61,39 @@ export function DailyPuzzle() {
                 ЗАДАЧА ДНЯ & КАЛЕНДАРЬ
               </h2>
               <span className="font-pixel-sm text-[9px] px-2 py-0.5 bg-amber-400 text-black">
-                {selectedDay} НОЯБРЯ 2026
+                {selectedDay} {currentMonthName}
               </span>
+              {selectedDay === todayDay && (
+                <span className="font-pixel-sm text-[8px] px-1.5 py-0.5 bg-emerald-500 text-black">
+                  [ СЕГОДНЯ ]
+                </span>
+              )}
             </div>
             <p className="text-xs text-amber-200/90 mt-1">
-              Решай ежедневную тактику, поддерживай непрерывный стрик побед и развивай тактическое зрение!
+              Каждый день новая задача. Решайте ежедневно для прокачки серии побед и синхронизации с Supabase!
             </p>
           </div>
         </div>
 
         {/* Streak HUD */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <div className="pixel-card p-2.5 flex items-center gap-2 text-white">
             <Flame className="w-5 h-5 text-orange-400" />
             <div className="flex flex-col">
-              <span className="font-pixel-sm text-[8px] text-zinc-400">СЕРИЯ ДНЕЙ</span>
-              <span className="font-pixel-sm text-sm text-orange-400">{solvedDays.length} ДНЕЙ</span>
+              <span className="font-pixel-sm text-[8px] text-zinc-400">ТЕКУЩИЙ СТРИК</span>
+              <span className="font-pixel-sm text-sm text-orange-400">
+                {currentStreak > 0 ? `${currentStreak} ДНЕЙ` : `${solvedDays.length} ДНЕЙ`}
+              </span>
+            </div>
+          </div>
+
+          <div className="pixel-card p-2.5 flex items-center gap-2 text-white">
+            <Trophy className="w-5 h-5 text-yellow-400" />
+            <div className="flex flex-col">
+              <span className="font-pixel-sm text-[8px] text-zinc-400">РЕКОРД</span>
+              <span className="font-pixel-sm text-sm text-yellow-400">
+                {bestStreak > 0 ? `${bestStreak}` : `${solvedDays.length}`}
+              </span>
             </div>
           </div>
         </div>
@@ -206,7 +227,7 @@ export function DailyPuzzle() {
             <div className="flex items-center justify-between border-b-2 border-zinc-800 pb-2">
               <div className="flex items-center gap-1.5 font-pixel-sm text-[10px] text-white">
                 <Calendar className="w-3.5 h-3.5 text-amber-400" />
-                <span>НОЯБРЬ 2026</span>
+                <span>{currentMonthName}</span>
               </div>
               <span className="font-pixel-sm text-[9px] text-zinc-400">
                 {solvedDays.length}/{daysInMonth} РЕШЕНО

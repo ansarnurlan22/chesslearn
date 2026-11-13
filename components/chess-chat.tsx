@@ -213,7 +213,7 @@ export function ChessChat({
                 ChessCheese Bot
               </h3>
               <span className="text-[10px] font-black tracking-wider uppercase px-2 py-0.5 rounded bg-[#fbbf24]/20 border border-[#fbbf24]/40 text-[#fbbf24]">
-                Stockfish 19 Lite + AI
+                Stockfish 19 Lite
               </span>
             </div>
             <div className="flex items-center gap-2 text-xs text-zinc-400 mt-0.5">
@@ -396,7 +396,7 @@ export function ChessChat({
           <div className="p-3 rounded-2xl bg-rose-950/40 border border-rose-800/60 text-rose-300 text-xs flex items-start gap-2.5">
             <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
             <div className="flex-1">
-              <span className="font-semibold block">Ошибка ответа AI</span>
+              <span className="font-semibold block">Ошибка ответа движка</span>
               <span>{errorMessage}</span>
             </div>
           </div>

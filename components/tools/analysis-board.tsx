@@ -84,7 +84,7 @@ export function AnalysisBoard({ initialFen, onEditBoard }: AnalysisBoardProps) {
           </div>
           <div>
             <div className="text-[10px] font-pixel-sm text-zinc-400 uppercase tracking-wider">
-              AI-НАСТАВНИК (STOCKFISH 19 LITE)
+              ДВИЖОК АНАЛИЗА (STOCKFISH 19 LITE)
             </div>
             <p className="text-sm font-semibold text-white mt-0.5">{coachComment}</p>
           </div>

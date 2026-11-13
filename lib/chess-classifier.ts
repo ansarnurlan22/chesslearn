@@ -105,7 +105,7 @@ function centipawnsToWinPercent(cp: number): number {
  * Incorporates:
  * 1. Embedded PGN evaluations (from Lichess/Chess.com) for real centipawn accuracy.
  * 2. Opening book tree to guarantee 'book' status with 0 CPL for theoretical moves.
- * 3. AI / Stockfish critical moments when provided.
+ * 3. Stockfish 19 Lite critical moments when provided.
  */
 export function classifyGameMoves(
   pgn: string,
@@ -146,7 +146,7 @@ export function classifyGameMoves(
     const turnChar: 'w' | 'b' = color === 'white' ? 'w' : 'b';
     const moveNumber = Math.ceil(ply / 2);
 
-    const aiMatch = criticalMap.get(ply);
+    const engineMatch = criticalMap.get(ply);
 
     let type: MoveClassificationType = 'good';
     let comment = 'Надёжный ход в партии.';
@@ -155,13 +155,13 @@ export function classifyGameMoves(
     let pvLine: string | undefined = undefined;
     let cpl = 0;
 
-    // 1. Check AI / Engine match first
-    if (aiMatch) {
-      type = aiMatch.type;
-      comment = aiMatch.comment;
-      betterMove = aiMatch.betterMove;
-      scoreStr = aiMatch.score;
-      pvLine = aiMatch.pvLine;
+    // 1. Check Stockfish 19 Lite match first
+    if (engineMatch) {
+      type = engineMatch.type;
+      comment = engineMatch.comment;
+      betterMove = engineMatch.betterMove;
+      scoreStr = engineMatch.score;
+      pvLine = engineMatch.pvLine;
     } else {
       // 2. Check Opening Book
       const bookCheck = isOpeningBookMove(historySan, i);

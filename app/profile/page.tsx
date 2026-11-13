@@ -3,7 +3,7 @@
 import { Logo } from '@/components/logo';
 import { StudentProfileModal } from '@/components/student-profile-modal';
 import { useAuth } from '@/hooks/use-auth';
-import { ArrowLeft, GraduationCap, Loader2, LogIn, User } from 'lucide-react';
+import { ArrowLeft, Loader2, LogIn, User } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -37,7 +37,7 @@ export default function ProfilePage() {
           </div>
           <h1 className="text-2xl font-black mb-2">Требуется вход</h1>
           <p className="text-sm text-zinc-400 mb-6">
-            Чтобы просматривать личный кабинет ученика, свои группы и статистику, войдите в аккаунт.
+            Чтобы просматривать личный кабинет, статистику партий и серию задач дня, войдите в аккаунт.
           </p>
           <Link
             href="/auth"

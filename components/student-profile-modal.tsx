@@ -2,24 +2,18 @@
 
 import {
   getStudentProfileDataAction,
-  joinGroupByInviteCodeAction,
-  leaveGroupAction,
   updateStudentProfileAction,
-  type StudentGroupInfo,
   type StudentProfileData,
 } from '@/lib/api/student-actions';
 import type { ChessPlatform } from '@/types/auth';
 import {
   AlertCircle,
   ArrowRight,
-  Check,
+  Calendar,
   CheckCircle2,
   Clock,
   Edit2,
-  ExternalLink,
   Flame,
-  GraduationCap,
-  KeyRound,
   Loader2,
   LogOut,
   Mail,
@@ -27,7 +21,6 @@ import {
   Sparkles,
   Trophy,
   User,
-  Users,
   X,
   Zap,
 } from 'lucide-react';
@@ -63,15 +56,6 @@ export function StudentProfileModal({
   const [isSavingProfile, startSavingProfile] = useTransition();
   const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null);
 
-  // Join group state
-  const [inviteCode, setInviteCode] = useState('');
-  const [isJoiningGroup, startJoiningGroup] = useTransition();
-  const [joinGroupError, setJoinGroupError] = useState<string | null>(null);
-  const [joinGroupSuccess, setJoinGroupSuccess] = useState<string | null>(null);
-
-  // Leaving group state
-  const [leavingGroupId, setLeavingGroupId] = useState<string | null>(null);
-
   const loadData = async () => {
     setIsLoading(true);
     setError(null);
@@ -98,8 +82,6 @@ export function StudentProfileModal({
       loadData();
       setIsEditing(false);
       setSaveSuccessMsg(null);
-      setJoinGroupError(null);
-      setJoinGroupSuccess(null);
     }
   }, [isOpen]);
 
@@ -127,47 +109,12 @@ export function StudentProfileModal({
     });
   };
 
-  const handleJoinGroup = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!inviteCode.trim()) return;
-
-    setJoinGroupError(null);
-    setJoinGroupSuccess(null);
-
-    startJoiningGroup(async () => {
-      const res = await joinGroupByInviteCodeAction(inviteCode);
-      if (res.success) {
-        setJoinGroupSuccess(`Вы успешно вступили в группу «${res.groupName}»!`);
-        setInviteCode('');
-        await loadData();
-      } else {
-        setJoinGroupError(res.error || 'Не удалось вступить в группу');
-      }
-    });
-  };
-
-  const handleLeaveGroup = async (groupId: string) => {
-    if (!confirm('Вы уверены, что хотите покинуть эту группу?')) return;
-    setLeavingGroupId(groupId);
-    try {
-      const res = await leaveGroupAction(groupId);
-      if (res.success) {
-        await loadData();
-      } else {
-        alert(res.error || 'Ошибка при выходе из группы');
-      }
-    } finally {
-      setLeavingGroupId(null);
-    }
-  };
-
   const handleViewMyGames = (username: string, platform: ChessPlatform) => {
     onClose();
     router.push(`/?u=${encodeURIComponent(username)}&p=${platform}`);
   };
 
   const profile = data?.profile;
-  const groups = data?.groups || [];
   const stats = data?.chessStats;
 
   // Format creation date
@@ -520,7 +467,7 @@ export function StudentProfileModal({
                 )}
               </div>
 
-              {/* Groups & Coach Section */}
+              {/* Daily Puzzle & Achievements Section */}
               <div
                 className={`p-5 rounded-2xl border ${
                   isChessCom ? 'bg-[#191815] border-[#302e2b]' : 'bg-[#1c1a17] border-[#33312c]'
@@ -528,98 +475,66 @@ export function StudentProfileModal({
               >
                 <div className="flex items-center justify-between">
                   <h4 className="text-sm font-bold text-white flex items-center gap-2">
-                    <GraduationCap className="w-4 h-4 text-amber-400" />
-                    <span>Мои группы и тренер ({groups.length})</span>
+                    <Flame className="w-4 h-4 text-amber-400" />
+                    <span>Серия задач дня (Стрик) & Прогресс</span>
                   </h4>
+                  <Link
+                    href="/train"
+                    onClick={onClose}
+                    className="text-xs text-emerald-400 hover:text-emerald-300 font-semibold flex items-center gap-1"
+                  >
+                    <span>Перейти к задачам</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </Link>
                 </div>
 
-                {/* Joined Groups List */}
-                {groups.length > 0 ? (
-                  <div className="flex flex-col gap-2.5">
-                    {groups.map((group) => (
-                      <div
-                        key={group.id}
-                        className="p-3.5 rounded-xl bg-[#161512] border border-zinc-800 flex items-center justify-between gap-3 flex-wrap"
-                      >
-                        <div className="min-w-0">
-                          <div className="font-bold text-sm text-white truncate">
-                            {group.name}
-                          </div>
-                          <div className="text-xs text-zinc-400 mt-0.5 flex items-center gap-2 flex-wrap">
-                            <span>
-                              Тренер:{' '}
-                              <strong className="text-zinc-200">{group.trainerName}</strong>
-                            </span>
-                            {group.description && (
-                              <span className="text-zinc-500">• {group.description}</span>
-                            )}
-                          </div>
-                        </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="bg-[#161512] border border-zinc-800 rounded-xl p-3.5 flex flex-col gap-1">
+                    <div className="flex items-center gap-1.5 text-xs text-zinc-400">
+                      <Flame className="w-4 h-4 text-amber-400" />
+                      <span>Текущий стрик</span>
+                    </div>
+                    <div className="flex items-baseline gap-1.5 mt-0.5">
+                      <span className="text-2xl font-black text-amber-400 font-mono">
+                        {profile?.puzzle_streak ?? 0}
+                      </span>
+                      <span className="text-xs text-zinc-500 font-medium">дней подряд</span>
+                    </div>
+                  </div>
 
-                        <button
-                          type="button"
-                          onClick={() => handleLeaveGroup(group.id)}
-                          disabled={leavingGroupId === group.id}
-                          className="text-xs text-rose-400 hover:text-rose-300 hover:bg-rose-950/30 px-2.5 py-1 rounded-lg border border-rose-500/20 transition-all cursor-pointer"
-                        >
-                          {leavingGroupId === group.id ? 'Выхожу...' : 'Покинуть группу'}
-                        </button>
-                      </div>
-                    ))}
+                  <div className="bg-[#161512] border border-zinc-800 rounded-xl p-3.5 flex flex-col gap-1">
+                    <div className="flex items-center gap-1.5 text-xs text-zinc-400">
+                      <Trophy className="w-4 h-4 text-emerald-400" />
+                      <span>Рекордный стрик</span>
+                    </div>
+                    <div className="flex items-baseline gap-1.5 mt-0.5">
+                      <span className="text-2xl font-black text-emerald-400 font-mono">
+                        {profile?.puzzle_best_streak ?? 0}
+                      </span>
+                      <span className="text-xs text-zinc-500 font-medium">дней подряд</span>
+                    </div>
                   </div>
-                ) : (
-                  <div className="py-4 text-center text-xs text-zinc-500 bg-[#161512]/50 border border-zinc-800/60 rounded-xl p-4">
-                    Вы пока не состоите ни в одной учебной группе. Введите инвайт-код от вашего тренера ниже, чтобы подключиться.
+
+                  <div className="bg-[#161512] border border-zinc-800 rounded-xl p-3.5 flex flex-col gap-1">
+                    <div className="flex items-center gap-1.5 text-xs text-zinc-400">
+                      <Calendar className="w-4 h-4 text-indigo-400" />
+                      <span>Решено в этом месяце</span>
+                    </div>
+                    <div className="flex items-baseline gap-1.5 mt-0.5">
+                      <span className="text-2xl font-black text-indigo-400 font-mono">
+                        {profile?.puzzle_solved_days?.length ?? 0}
+                      </span>
+                      <span className="text-xs text-zinc-500 font-medium">из 31 задач</span>
+                    </div>
                   </div>
+                </div>
+
+                {profile?.puzzle_last_solved_date && (
+                  <p className="text-[11px] text-zinc-500 flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5 text-zinc-600" />
+                    <span>Последняя решённая задача дня: {profile.puzzle_last_solved_date}</span>
+                  </p>
                 )}
-
-                {/* Join by Invite Code Form */}
-                <form
-                  onSubmit={handleJoinGroup}
-                  className="pt-3 border-t border-zinc-800/80 flex flex-col gap-2"
-                >
-                  <label className="text-xs font-semibold text-zinc-300 flex items-center gap-1.5">
-                    <KeyRound className="w-3.5 h-3.5 text-amber-400" />
-                    <span>Вступить в группу по инвайт-коду тренера</span>
-                  </label>
-
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      value={inviteCode}
-                      onChange={(e) => setInviteCode(e.target.value)}
-                      placeholder="Введите 8-значный код (например, a8f12b3c)"
-                      className="flex-1 bg-[#161512] border border-zinc-700 focus:border-amber-400 rounded-xl px-3.5 py-2 text-xs sm:text-sm text-white focus:outline-none font-mono"
-                    />
-                    <button
-                      type="submit"
-                      disabled={isJoiningGroup || !inviteCode.trim()}
-                      className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold text-xs transition-all active:scale-95 disabled:opacity-50 cursor-pointer flex items-center gap-1.5 shrink-0"
-                    >
-                      {isJoiningGroup ? (
-                        <>
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          <span>Вступаю...</span>
-                        </>
-                      ) : (
-                        <span>Вступить</span>
-                      )}
-                    </button>
-                  </div>
-
-                  {joinGroupSuccess && (
-                    <p className="text-xs text-emerald-400 mt-1 flex items-center gap-1">
-                      <Check className="w-3.5 h-3.5" />
-                      <span>{joinGroupSuccess}</span>
-                    </p>
-                  )}
-                  {joinGroupError && (
-                    <p className="text-xs text-rose-400 mt-1 flex items-center gap-1">
-                      <AlertCircle className="w-3.5 h-3.5" />
-                      <span>{joinGroupError}</span>
-                    </p>
-                  )}
-                </form>
               </div>
             </>
           )}

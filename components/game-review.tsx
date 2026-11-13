@@ -246,7 +246,7 @@ export function GameReview({
             <h3 className="font-bold text-base text-white flex items-center gap-2">
               <span>Разбор партии</span>
               <span className={`text-[10px] px-2 py-0.5 rounded-full ${isChessCom ? 'bg-[#81b64c]/15 border-[#81b64c]/30 text-[#81b64c]' : 'bg-[#3692e7]/15 border-[#3692e7]/30 text-[#3692e7]'} border font-mono`}>
-                AI
+                Stockfish 19 Lite
               </span>
             </h3>
           </div>
@@ -268,7 +268,7 @@ export function GameReview({
             ) : (
               <>
                 <Sparkles className="w-4 h-4 text-white" />
-                <span>Запустить AI-разбор партии</span>
+                <span>Запустить анализ Stockfish 19 Lite</span>
               </>
             )}
           </button>
@@ -300,9 +300,9 @@ export function GameReview({
           <div className={`w-12 h-12 rounded-2xl ${isChessCom ? 'bg-[#191815] border-[#302e2b] text-[#81b64c]' : 'bg-[#1c1a17] border-[#33312c] text-[#3692e7]'} border flex items-center justify-center`}>
             <Lightbulb className="w-6 h-6" />
           </div>
-          <p className="text-sm font-medium text-zinc-300">Партия готова к AI-анализу</p>
+          <p className="text-sm font-medium text-zinc-300">Партия готова к анализу</p>
           <p className={`text-xs ${isChessCom ? 'text-[#8b8987]' : 'text-[#7e7b76]'} max-w-sm`}>
-            Нажми «Запустить AI-разбор партии», чтобы нейросеть оценила точность, выявила ключевые ходы и составила сводную таблицу.
+            Нажми «Запустить анализ Stockfish 19 Lite», чтобы движок рассчитал точность, выявил ключевые ходы и составил сводную таблицу.
           </p>
         </div>
       )}
@@ -545,7 +545,7 @@ export function GameReview({
                       </div>
                     </div>
 
-                    {/* Comment from AI */}
+                    {/* Comment from Stockfish 19 Lite */}
                     <p
                       onClick={() => onSelectMovePly(item.ply)}
                       className={`text-xs ${isChessCom ? 'text-[#c3c2c1]' : 'text-[#bababa]'} leading-relaxed cursor-pointer`}

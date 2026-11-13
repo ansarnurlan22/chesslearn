@@ -130,7 +130,7 @@ export function TrainerDashboard({ initialGroups, profile }: TrainerDashboardPro
   };
 
   const handleCopyWhatsAppInvite = (groupName: string, inviteCode: string) => {
-    const text = `👋 Привет! Для разбора шахматных партий мы в группе "${groupName}" используем сервис ChessCheese 🧀\n\n1. Переходи по ссылке: https://chesscheese.kz/auth\n2. Регистрируйся и вводи код группы: ${inviteCode}\n3. Твои партии с Chess.com и Lichess будут автоматически анализироваться AI-тренером!\n\nРазбирай ошибки после каждой игры! ♟️`;
+    const text = `👋 Привет! Для разбора шахматных партий мы в группе "${groupName}" используем сервис ChessCheese 🧀\n\n1. Переходи по ссылке: https://chesscheese.kz/auth\n2. Регистрируйся и вводи код группы: ${inviteCode}\n3. Твои партии с Chess.com и Lichess будут автоматически анализироваться движком Stockfish 19 Lite!\n\nРазбирай ошибки после каждой игры! ♟️`;
     navigator.clipboard.writeText(text);
     setCopiedShareText(true);
     setTimeout(() => setCopiedShareText(false), 3000);
