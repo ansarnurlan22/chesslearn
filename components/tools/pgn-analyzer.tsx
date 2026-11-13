@@ -104,7 +104,7 @@ export function PgnAnalyzer() {
 
       {loading && (
         <div className="text-center text-xs text-zinc-500 animate-pulse">
-          Stockfish просчитывает каждый ход... это может занять 15-30 секунд
+          Stockfish 19 Lite просчитывает каждый ход... это может занять 15-30 секунд
         </div>
       )}
 

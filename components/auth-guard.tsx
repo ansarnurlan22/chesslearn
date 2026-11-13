@@ -7,12 +7,11 @@ import { useEffect, type ReactNode } from 'react';
 
 interface AuthGuardProps {
   children: ReactNode;
-  /** If set, only allow users with this role through */
-  requiredRole?: 'student' | 'trainer';
+  requiredRole?: string;
 }
 
-export function AuthGuard({ children, requiredRole }: AuthGuardProps) {
-  const { user, profile, loading } = useAuth();
+export function AuthGuard({ children }: AuthGuardProps) {
+  const { user, loading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
@@ -20,18 +19,8 @@ export function AuthGuard({ children, requiredRole }: AuthGuardProps) {
 
     if (!user) {
       router.push('/auth');
-      return;
     }
-
-    if (requiredRole && profile && profile.role !== requiredRole) {
-      // Wrong role — redirect to appropriate dashboard
-      if (profile.role === 'trainer') {
-        router.push('/dashboard/trainer');
-      } else {
-        router.push('/');
-      }
-    }
-  }, [user, profile, loading, requiredRole, router]);
+  }, [user, loading, router]);
 
   if (loading) {
     return (
@@ -45,10 +34,6 @@ export function AuthGuard({ children, requiredRole }: AuthGuardProps) {
   }
 
   if (!user) {
-    return null;
-  }
-
-  if (requiredRole && profile && profile.role !== requiredRole) {
     return null;
   }
 

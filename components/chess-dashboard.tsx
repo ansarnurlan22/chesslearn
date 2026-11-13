@@ -5,35 +5,56 @@ import { ChessViewer } from '@/components/chess-viewer';
 import { GameReview } from '@/components/game-review';
 import { Logo } from '@/components/logo';
 import { StudentProfileModal } from '@/components/student-profile-modal';
+import { ChessClock } from '@/components/tools/chess-clock';
+import { EloCalculator } from '@/components/tools/elo-calculator';
+import { FenAnalyzer } from '@/components/tools/fen-analyzer';
+import { OpeningExplorer } from '@/components/tools/opening-explorer';
+import { PgnAnalyzer } from '@/components/tools/pgn-analyzer';
 import { useAuth } from '@/hooks/use-auth';
 import type { ChessPlatform, UnifiedGame, UnifiedPlayerProfile } from '@/lib/api/types';
 import { CLASSIFICATION_META } from '@/lib/chess-classifier';
 import type { GameReviewData, MoveAnalysis } from '@/types/review';
 import {
   AlertCircle,
+  BookOpen,
   Bot,
+  Calculator,
   Calendar,
   CheckCircle2,
   Clock,
   Crown,
   ExternalLink,
+  FileText,
   Flame,
   Globe,
-  GraduationCap,
   Loader2,
+  LogOut,
+  Menu,
   MinusCircle,
+  Scan,
   Search,
   Sparkles,
   Swords,
   Trophy,
   User,
-  Wrench,
+  X,
   XCircle,
   Zap,
 } from 'lucide-react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useState, useTransition } from 'react';
+
+export type DashboardTab = 'analysis' | 'openings' | 'fen' | 'pgn' | 'elo' | 'clock';
+
+const NAV_ITEMS: { id: DashboardTab; label: string; icon: React.ElementType; badge?: string }[] = [
+  { id: 'analysis', label: 'Анализ партий', icon: Swords },
+  { id: 'openings', label: 'Дебюты', icon: BookOpen, badge: '200+' },
+  { id: 'fen', label: 'FEN Анализ', icon: Scan },
+  { id: 'pgn', label: 'PGN Анализ', icon: FileText },
+  { id: 'elo', label: 'ELO Калькулятор', icon: Calculator },
+  { id: 'clock', label: 'Шахматные часы', icon: Clock },
+];
 
 export interface ChessDashboardProps {
   initialUsername?: string;
@@ -54,11 +75,22 @@ export function ChessDashboard({
   error,
 }: ChessDashboardProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const tabParam = searchParams?.get('tab') as DashboardTab | null;
+  const [activeTab, setActiveTab] = useState<DashboardTab>(tabParam || 'analysis');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { user, profile: authProfile, signOut } = useAuth();
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [platform, setPlatform] = useState<ChessPlatform>(initialPlatform);
   const [usernameInput, setUsernameInput] = useState(initialUsername);
   const [isPending, startTransition] = useTransition();
+
+  // Sync activeTab when query param changes
+  useEffect(() => {
+    if (tabParam && ['analysis', 'openings', 'fen', 'pgn', 'elo', 'clock'].includes(tabParam)) {
+      setActiveTab(tabParam);
+    }
+  }, [tabParam]);
 
   // If user is logged in with a linked chess username and opened without ?u=, auto-load their profile
   useEffect(() => {
@@ -207,97 +239,278 @@ export function ChessDashboard({
     totalGamesCount > 0 ? Math.max(0, 100 - winRate - lossRate) : 0;
 
   return (
-    <div className={`min-h-screen ${isChessCom ? 'bg-[#161512]' : 'bg-[#161512]'} text-white font-sans antialiased flex flex-col transition-colors duration-200`}>
-      {/* Sticky Header Navbar */}
-      <header className={`sticky top-0 z-50 backdrop-blur-md ${isChessCom ? 'bg-[#161512]/95 border-[#302e2b]' : 'bg-[#161512]/95 border-[#33312c]'} border-b transition-colors`}>
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          <a href="/" className="flex items-center gap-3 group">
+    <div className={`min-h-screen ${isChessCom ? 'bg-[#161512]' : 'bg-[#161512]'} text-white font-sans antialiased flex flex-col md:flex-row transition-colors duration-200`}>
+      {/* Mobile Top Header */}
+      <header className="md:hidden sticky top-0 z-40 h-16 border-b border-[#302e2b] bg-[#1a1815] px-4 flex items-center justify-between">
+        <a href="/" className="flex items-center gap-2.5">
+          <Logo size="sm" />
+        </a>
+        <div className="flex items-center gap-2">
+          {user ? (
+            <button
+              type="button"
+              onClick={() => setIsProfileModalOpen(true)}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-[#302e2b] bg-[#211f1c] text-xs font-semibold text-white cursor-pointer"
+            >
+              <div className="w-5 h-5 rounded-md bg-[#81b64c] flex items-center justify-center text-[10px] font-black">
+                {authProfile?.full_name ? authProfile.full_name[0].toUpperCase() : 'U'}
+              </div>
+              <span className="truncate max-w-[90px]">
+                {authProfile?.full_name || user.email?.split('@')[0]}
+              </span>
+            </button>
+          ) : (
+            <Link
+              href="/auth"
+              className="px-3 py-1.5 rounded-lg bg-[#81b64c] text-white text-xs font-bold"
+            >
+              Войти
+            </Link>
+          )}
+          <button
+            type="button"
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            className="p-2 rounded-lg text-zinc-400 hover:text-white hover:bg-[#211f1c] transition-colors cursor-pointer"
+            aria-label="Меню"
+          >
+            {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          </button>
+        </div>
+      </header>
+
+      {/* Mobile Drawer (if open) */}
+      {isMobileMenuOpen && (
+        <div className="md:hidden fixed inset-x-0 top-16 bottom-0 z-40 bg-[#161512]/95 backdrop-blur-md p-4 flex flex-col justify-between overflow-y-auto">
+          <div className="flex flex-col gap-2">
+            <div className="text-[10px] uppercase font-bold tracking-wider text-zinc-500 mb-1 px-2">
+              Инструменты и анализ
+            </div>
+            {NAV_ITEMS.map((item) => {
+              const Icon = item.icon;
+              const isActive = activeTab === item.id;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => {
+                    setActiveTab(item.id);
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className={`flex items-center justify-between px-3.5 py-3 rounded-xl font-medium text-sm transition-all text-left cursor-pointer ${
+                    isActive
+                      ? isChessCom
+                        ? 'bg-[#81b64c]/15 text-[#81b64c] border border-[#81b64c]/30 font-semibold'
+                        : 'bg-[#3692e7]/15 text-[#3692e7] border border-[#3692e7]/30 font-semibold'
+                      : 'text-zinc-400 hover:text-white hover:bg-[#211f1c]'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <Icon className="w-5 h-5" />
+                    <span>{item.label}</span>
+                  </div>
+                  {item.badge && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#211f1c] text-zinc-400 border border-[#302e2b]">
+                      {item.badge}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+
+            {/* Platform switcher in mobile menu */}
+            <div className="mt-4 pt-4 border-t border-[#302e2b]">
+              <div className="text-[10px] uppercase font-bold tracking-wider text-zinc-500 mb-2 px-2">
+                Платформа партий
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => onPlatformChange('lichess')}
+                  className={`py-2 px-3 rounded-xl border text-xs font-semibold cursor-pointer ${
+                    platform === 'lichess'
+                      ? 'bg-[#3692e7] border-[#3692e7] text-white'
+                      : 'border-[#302e2b] bg-[#211f1c] text-zinc-400'
+                  }`}
+                >
+                  Lichess
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onPlatformChange('chesscom')}
+                  className={`py-2 px-3 rounded-xl border text-xs font-semibold cursor-pointer ${
+                    platform === 'chesscom'
+                      ? 'bg-[#81b64c] border-[#81b64c] text-white'
+                      : 'border-[#302e2b] bg-[#211f1c] text-zinc-400'
+                  }`}
+                >
+                  Chess.com
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="pt-4 border-t border-[#302e2b] flex items-center justify-between text-xs text-zinc-500">
+            <span className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-emerald-400" />
+              Stockfish 19 Lite
+            </span>
+            <span>© ChessCheese</span>
+          </div>
+        </div>
+      )}
+
+      {/* Desktop Left Sidebar (как на chessigma.com) */}
+      <aside className="hidden md:flex flex-col w-64 h-screen sticky top-0 border-r border-[#302e2b] bg-[#1a1815] shrink-0 z-30 select-none">
+        {/* Logo & Engine Header */}
+        <div className="p-4 border-b border-[#302e2b] flex flex-col gap-3">
+          <a href="/" className="flex items-center gap-2.5">
             <Logo size="md" />
           </a>
 
-          <div className="flex items-center gap-2 sm:gap-3 text-xs">
-            <Link
-              href="/tools"
-              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#a855f7]/30 bg-[#a855f7]/10 hover:bg-[#a855f7]/20 text-[#a855f7] font-medium transition-all"
-            >
-              <Wrench className="w-3.5 h-3.5" />
-              <span>Инструменты</span>
-            </Link>
-            <Link
-              href="/for-trainers"
-              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#fbbf24]/30 bg-[#fbbf24]/10 hover:bg-[#fbbf24]/20 text-[#fbbf24] font-medium transition-all"
-            >
-              <GraduationCap className="w-3.5 h-3.5" />
-              <span>Для тренеров</span>
-            </Link>
+          {/* Engine Pill */}
+          <div className="flex items-center justify-between px-3 py-1.5 rounded-xl bg-[#211f1c] border border-[#302e2b]">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="text-xs font-bold text-white tracking-tight">Stockfish 19 Lite</span>
+            </div>
+            <span className="text-[10px] uppercase font-mono text-emerald-400 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
+              Active
+            </span>
+          </div>
+        </div>
 
-            {user ? (
-              <button
-                type="button"
-                onClick={() => setIsProfileModalOpen(true)}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border ${
-                  authProfile?.role === 'trainer'
-                    ? 'border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300'
-                    : isChessCom
-                      ? 'border-[#81b64c]/40 bg-[#81b64c]/15 hover:bg-[#81b64c]/25 text-[#81b64c]'
-                      : 'border-[#3692e7]/40 bg-[#3692e7]/15 hover:bg-[#3692e7]/25 text-[#3692e7]'
-                } font-semibold transition-all cursor-pointer shadow-sm`}
-                title="Личный кабинет"
-              >
-                <div className="w-5 h-5 rounded-lg bg-current/20 flex items-center justify-center text-xs font-black">
-                  {authProfile?.full_name ? authProfile.full_name[0].toUpperCase() : 'U'}
-                </div>
-                <span className="truncate max-w-[100px] sm:max-w-[140px] text-white text-xs">
-                  {authProfile?.full_name || user.email?.split('@')[0]}
-                </span>
-                <span className="text-[10px] font-mono uppercase opacity-90 px-1.5 py-0.5 rounded bg-black/40 border border-current/20 hidden sm:inline-block">
-                  {authProfile?.role === 'trainer' ? 'Тренер' : 'Ученик'}
-                </span>
-              </button>
-            ) : (
-              <Link
-                href="/auth"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#302e2b] bg-[#211f1c] hover:bg-[#262421] text-[#c3c2c1] hover:text-white font-medium transition-all"
-              >
-                <User className="w-3.5 h-3.5" />
-                <span>Войти</span>
-              </Link>
-            )}
-
-            <div className="w-px h-5 bg-[#302e2b] hidden sm:block" />
-
+        {/* Platform Selector in Sidebar */}
+        <div className="p-3 border-b border-[#302e2b]">
+          <div className="text-[10px] uppercase font-bold tracking-wider text-zinc-500 mb-1.5 px-1 flex items-center justify-between">
+            <span>Платформа</span>
+            <span className="text-[10px] font-mono text-zinc-600">{platform}</span>
+          </div>
+          <div className="grid grid-cols-2 p-1 rounded-xl bg-[#211f1c] border border-[#302e2b]">
             <button
               type="button"
               onClick={() => onPlatformChange('lichess')}
-              className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition-all cursor-pointer ${
+              className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                 platform === 'lichess'
-                  ? 'bg-[#3692e7] text-white border-[#3692e7] font-bold'
-                  : isChessCom
-                    ? 'bg-[#211f1c] hover:bg-[#262421] text-[#c3c2c1] border-[#302e2b]'
-                    : 'bg-[#24221f] hover:bg-[#292723] text-[#bababa] border-[#33312c]'
+                  ? 'bg-[#3692e7] text-white shadow-sm font-bold'
+                  : 'text-zinc-400 hover:text-white'
               }`}
             >
-              Lichess
+              <span>Lichess</span>
             </button>
             <button
               type="button"
               onClick={() => onPlatformChange('chesscom')}
-              className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition-all cursor-pointer ${
+              className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                 platform === 'chesscom'
-                  ? 'bg-[#81b64c] text-white border-[#81b64c] font-bold'
-                  : isChessCom
-                    ? 'bg-[#211f1c] hover:bg-[#262421] text-[#c3c2c1] border-[#302e2b]'
-                    : 'bg-[#24221f] hover:bg-[#292723] text-[#bababa] border-[#33312c]'
+                  ? 'bg-[#81b64c] text-white shadow-sm font-bold'
+                  : 'text-zinc-400 hover:text-white'
               }`}
             >
-              Chess.com
+              <span>Chess.com</span>
             </button>
           </div>
         </div>
-      </header>
 
-      {/* Main Content */}
-      <main className="flex-1 w-full max-w-6xl mx-auto px-4 sm:px-6">
+        {/* Nav Items List */}
+        <div className="flex-1 p-3 overflow-y-auto space-y-1">
+          <div className="text-[10px] uppercase font-bold tracking-wider text-zinc-500 mb-2 px-2">
+            Инструменты & Анализ
+          </div>
+          {NAV_ITEMS.map((item) => {
+            const Icon = item.icon;
+            const isActive = activeTab === item.id;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => setActiveTab(item.id)}
+                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl font-medium text-xs transition-all cursor-pointer text-left ${
+                  isActive
+                    ? isChessCom
+                      ? 'bg-[#81b64c]/15 text-[#81b64c] border border-[#81b64c]/30 font-semibold shadow-sm'
+                      : 'bg-[#3692e7]/15 text-[#3692e7] border border-[#3692e7]/30 font-semibold shadow-sm'
+                    : 'text-zinc-400 hover:text-white hover:bg-[#211f1c]'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <Icon
+                    className={`w-4 h-4 ${
+                      isActive
+                        ? isChessCom
+                          ? 'text-[#81b64c]'
+                          : 'text-[#3692e7]'
+                        : 'text-zinc-500'
+                    }`}
+                  />
+                  <span>{item.label}</span>
+                </div>
+                {item.badge && (
+                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-[#211f1c] text-zinc-400 border border-[#302e2b]">
+                    {item.badge}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Bottom User Area */}
+        <div className="p-3 border-t border-[#302e2b] bg-[#161512]/60">
+          {user ? (
+            <div className="flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={() => setIsProfileModalOpen(true)}
+                className="w-full flex items-center gap-2.5 p-2 rounded-xl hover:bg-[#211f1c] transition-all text-left border border-transparent hover:border-[#302e2b] cursor-pointer"
+                title="Личный кабинет"
+              >
+                <div
+                  className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-black text-white shrink-0 ${
+                    isChessCom ? 'bg-[#81b64c]' : 'bg-[#3692e7]'
+                  }`}
+                >
+                  {authProfile?.full_name ? authProfile.full_name[0].toUpperCase() : 'U'}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs font-semibold text-white truncate">
+                    {authProfile?.full_name || user.email?.split('@')[0]}
+                  </div>
+                  <div className="text-[10px] text-zinc-500 truncate">
+                    {authProfile?.chess_username
+                      ? `@${authProfile.chess_username}`
+                      : 'Профиль игрока'}
+                  </div>
+                </div>
+              </button>
+              <button
+                type="button"
+                onClick={signOut}
+                className="w-full flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg border border-[#302e2b] bg-[#211f1c] hover:bg-[#262421] text-zinc-400 hover:text-white text-xs font-medium transition-all cursor-pointer"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span>Выйти</span>
+              </button>
+            </div>
+          ) : (
+            <Link
+              href="/auth"
+              className={`w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl font-bold text-xs text-white shadow-md transition-all ${
+                isChessCom
+                  ? 'bg-[#81b64c] hover:bg-[#74a643]'
+                  : 'bg-[#3692e7] hover:bg-[#2c7ec9]'
+              }`}
+            >
+              <User className="w-4 h-4" />
+              <span>Войти в аккаунт</span>
+            </Link>
+          )}
+        </div>
+      </aside>
+
+      {/* Main Content Area */}
+      <div className="flex-1 min-w-0 flex flex-col pb-16 md:pb-0">
+        {activeTab === 'analysis' && (
+          <main className="flex-1 w-full max-w-6xl mx-auto px-4 sm:px-6">
         <div className="w-full flex flex-col gap-10 pt-10 pb-16">
           {/* Hero Section */}
           <section className="flex flex-col items-center text-center max-w-3xl mx-auto px-4">
@@ -891,20 +1104,140 @@ export function ChessDashboard({
           )}
         </div>
       </main>
+      )}
 
-      {/* Footer */}
-      <footer className={`border-t ${isChessCom ? 'border-[#302e2b] bg-[#161512] text-[#8b8987]' : 'border-[#33312c] bg-[#161512] text-[#7e7b76]'} py-8 text-center text-xs transition-colors`}>
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <Logo size="sm" />
-            <span className="text-zinc-500">•</span>
-            <span>Анализ шахматных партий & AI-наставник</span>
+        {/* Tab: Openings */}
+        {activeTab === 'openings' && (
+          <main className="flex-1 w-full max-w-4xl mx-auto px-4 sm:px-6 py-8">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                <BookOpen className="w-5 h-5" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-black text-white">Дебютный справочник</h1>
+                <p className="text-xs text-zinc-500">Поиск дебютов по ECO-кодам, названиям и вариантам ходов</p>
+              </div>
+            </div>
+            <div className="border border-[#302e2b] rounded-2xl bg-[#211f1c] p-6 shadow-md">
+              <OpeningExplorer />
+            </div>
+          </main>
+        )}
+
+        {/* Tab: FEN Analyzer */}
+        {activeTab === 'fen' && (
+          <main className="flex-1 w-full max-w-3xl mx-auto px-4 sm:px-6 py-8">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 rounded-xl bg-[#a855f7]/15 border border-[#a855f7]/30 flex items-center justify-center text-[#a855f7]">
+                <Scan className="w-5 h-5" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-black text-white">FEN Анализатор позиции</h1>
+                <p className="text-xs text-zinc-500">Глубокий анализ позиции движком Stockfish 19 Lite</p>
+              </div>
+            </div>
+            <div className="border border-[#302e2b] rounded-2xl bg-[#211f1c] p-6 shadow-md">
+              <FenAnalyzer />
+            </div>
+          </main>
+        )}
+
+        {/* Tab: PGN Analyzer */}
+        {activeTab === 'pgn' && (
+          <main className="flex-1 w-full max-w-3xl mx-auto px-4 sm:px-6 py-8">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 rounded-xl bg-[#a855f7]/15 border border-[#a855f7]/30 flex items-center justify-center text-[#a855f7]">
+                <FileText className="w-5 h-5" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-black text-white">PGN Анализатор партий</h1>
+                <p className="text-xs text-zinc-500">
+                  Полный разбор партии с точностью и комментариями от Stockfish 19 Lite
+                </p>
+              </div>
+            </div>
+            <div className="border border-[#302e2b] rounded-2xl bg-[#211f1c] p-6 shadow-md">
+              <PgnAnalyzer />
+            </div>
+          </main>
+        )}
+
+        {/* Tab: ELO Calculator */}
+        {activeTab === 'elo' && (
+          <main className="flex-1 w-full max-w-2xl mx-auto px-4 sm:px-6 py-8">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                <Calculator className="w-5 h-5" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-black text-white">Калькулятор ELO / Рейтинга</h1>
+                <p className="text-xs text-zinc-500">Расчет изменения рейтинга по официальной формуле FIDE</p>
+              </div>
+            </div>
+            <div className="border border-[#302e2b] rounded-2xl bg-[#211f1c] p-6 shadow-md">
+              <EloCalculator />
+            </div>
+          </main>
+        )}
+
+        {/* Tab: Chess Clock */}
+        {activeTab === 'clock' && (
+          <main className="flex-1 w-full max-w-2xl mx-auto px-4 sm:px-6 py-8">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 rounded-xl bg-blue-500/15 border border-blue-500/30 flex items-center justify-center text-blue-400">
+                <Clock className="w-5 h-5" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-black text-white">Шахматные часы</h1>
+                <p className="text-xs text-zinc-500">Цифровой таймер с контролями времени для блица, рапида и пули</p>
+              </div>
+            </div>
+            <div className="border border-[#302e2b] rounded-2xl bg-[#211f1c] p-6 shadow-md">
+              <ChessClock />
+            </div>
+          </main>
+        )}
+
+        {/* Footer */}
+        <footer className={`border-t ${isChessCom ? 'border-[#302e2b] bg-[#161512] text-[#8b8987]' : 'border-[#33312c] bg-[#161512] text-[#7e7b76]'} py-8 text-center text-xs transition-colors mt-auto`}>
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <Logo size="sm" />
+              <span className="text-zinc-500">•</span>
+              <span>Анализ шахматных партий & AI-наставник • Stockfish 19 Lite</span>
+            </div>
+            <div className="text-zinc-600 text-[11px]">
+              © {new Date().getFullYear()} ChessCheese — все права защищены
+            </div>
           </div>
-          <div className="text-zinc-600 text-[11px]">
-            © {new Date().getFullYear()} ChessCheese — все права защищены
-          </div>
-        </div>
-      </footer>
+        </footer>
+      </div>
+
+      {/* Mobile Bottom Navigation Bar (как на мобильной версии chessigma) */}
+      <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-[#1a1815]/95 backdrop-blur-md border-t border-[#302e2b] flex items-center justify-around py-2 px-1 text-[10px]">
+        {NAV_ITEMS.map((item) => {
+          const Icon = item.icon;
+          const isActive = activeTab === item.id;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => setActiveTab(item.id)}
+              className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg transition-colors cursor-pointer ${
+                isActive
+                  ? isChessCom
+                    ? 'text-[#81b64c] font-bold'
+                    : 'text-[#3692e7] font-bold'
+                  : 'text-zinc-500 hover:text-zinc-300'
+              }`}
+            >
+              <Icon className="w-4 h-4" />
+              <span className="truncate max-w-[50px]">{item.label.split(' ')[0]}</span>
+            </button>
+          );
+        })}
+      </nav>
+
       {/* Student Profile Modal */}
       <StudentProfileModal
         isOpen={isProfileModalOpen}

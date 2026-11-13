@@ -25,7 +25,7 @@ export async function POST(request: Request) {
   const { pgn = '', playerColor = 'white', username = 'Игрок' } = body;
 
   try {
-    // 1. Stockfish performs 100% of the mathematical calculations (eval, CPL, classifications)
+    // 1. Stockfish 19 Lite performs 100% of the mathematical calculations (eval, CPL, classifications)
     const engineResult = await classifyGameWithEngine(pgn);
 
     const userAccuracy =
@@ -37,7 +37,7 @@ export async function POST(request: Request) {
       playerColor === 'white' ? engineResult.stats.white : engineResult.stats.black;
 
     // Default summaries in case Gemini is not configured or encounters an issue
-    let summary = `Партия ${username} (${playerColor === 'white' ? 'Белые' : 'Чёрные'}) сыграна с точностью ${userAccuracy}%. Движок Stockfish зафиксировал ${userStats.blunder} зевков, ${userStats.mistake} ошибок и ${userStats.best + userStats.great} сильнейших ходов.`;
+    let summary = `Партия ${username} (${playerColor === 'white' ? 'Белые' : 'Чёрные'}) сыграна с точностью ${userAccuracy}%. Движок Stockfish 19 Lite зафиксировал ${userStats.blunder} зевков, ${userStats.mistake} ошибок и ${userStats.best + userStats.great} сильнейших ходов.`;
     let keyTakeaway =
       userStats.blunder > 0
         ? 'Уделяйте больше внимания проверке незащищенных фигур и прямым тактическим угрозам соперника перед каждым ходом.'
@@ -51,12 +51,12 @@ export async function POST(request: Request) {
         const criticalFacts = engineResult.criticalMoves
           .map(
             (cm) =>
-              `- Ход ${cm.moveNumber} (ply ${cm.ply}, ${cm.color === 'white' ? 'Белые' : 'Чёрные'}): ${cm.san}. Статус: ${cm.type}. Лучший ход Stockfish: ${cm.betterMove}. Оценка: ${cm.score || 'Равенство'}. PV: ${cm.pvLine || '-'}`,
+              `- Ход ${cm.moveNumber} (ply ${cm.ply}, ${cm.color === 'white' ? 'Белые' : 'Чёрные'}): ${cm.san}. Статус: ${cm.type}. Лучший ход Stockfish 19 Lite: ${cm.betterMove}. Оценка: ${cm.score || 'Равенство'}. PV: ${cm.pvLine || '-'}`,
           )
           .join('\n');
 
         const prompt = `Ты — шахматный гроссмейстер и главный аналитический движок платформы ChessCheese.
-Все расчёты УЖЕ сделаны движком Stockfish. Твоя цель — выступить переводчиком на живой гроссмейстерский язык, опираясь исключительно на данные Stockfish.
+Все расчёты УЖЕ сделаны движком Stockfish 19 Lite. Твоя цель — выступить переводчиком на живой гроссмейстерский язык, опираясь исключительно на данные Stockfish 19 Lite.
 
 ВХОДНЫЕ ДАННЫЕ:
 - Игрок: "${username}" играл за ${playerColor === 'white' ? 'Белых' : 'Чёрных'}.
@@ -64,7 +64,7 @@ export async function POST(request: Request) {
 - Статистика ходов:
   Белые: ${JSON.stringify(engineResult.stats.white)}
   Чёрные: ${JSON.stringify(engineResult.stats.black)}
-- Ключевые ходы партии от Stockfish:
+- Ключевые ходы партии от Stockfish 19 Lite:
 ${criticalFacts}
 
 ОБЯЗАТЕЛЬНЫЙ ЭТАП ПРОВЕРКИ:
@@ -73,7 +73,7 @@ ${criticalFacts}
    - Если ДА: объявляй форсированный мат, без упоминаний «материального перевеса» или «позиционного давления».
    - Если НЕТ: зафиксируй числовой перевес в пешках.
 2. Проверка тактики: Содержит ли PV-линия форсированные взятия, шахи или жертвы?
-3. Оценка хода игрока: Сравни ход игрока с лучшим ходом Stockfish.
+3. Оценка хода игрока: Сравни ход игрока с лучшим ходом Stockfish 19 Lite.
 
 ПРАВИЛА:
 1. ПРИОРИТЕТ МАТА: При наличии мата первой строкой объявляется форсированный финал.
@@ -84,7 +84,7 @@ ${criticalFacts}
 ЗАДАЧА — сгенерировать строго следующий JSON:
 1. summary (2-3 предложения): живое резюме партии с указанием переломного момента. Для каждого критического хода укажи вердикт (Форсированный мат / Грубый зевок / Решающее преимущество / Равная борьба).
 2. keyTakeaway: главный практический урок для "${username}" на основе допущенных неточностей. Укажи на какую деталь геометрии доски или тактический мотив стоило обратить внимание.
-3. criticalMoveComments: для каждого ключевого хода — живой гроссмейстерский комментарий с пошаговым разбором PV-линии Stockfish.
+3. criticalMoveComments: для каждого ключевого хода — живой гроссмейстерский комментарий с пошаговым разбором PV-линии Stockfish 19 Lite.
 
 Верни СТРОГИЙ JSON следующего формата:
 {

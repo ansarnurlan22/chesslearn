@@ -71,7 +71,7 @@ export function ChessChat({
     {
       id: 'welcome',
       role: 'assistant',
-      text: 'Приветствую за доской! Я твой гроссмейстер-наставник ChessCheese Bot. Все расчеты позиций ведутся на движке Stockfish. Выбери любой ход на доске или задай вопрос!',
+      text: 'Приветствую за доской! Я твой гроссмейстер-наставник ChessCheese Bot. Все расчеты позиций ведутся на движке Stockfish 19 Lite. Выбери любой ход на доске или задай вопрос!',
     },
   ]);
   const [inputValue, setInputValue] = useState('');
@@ -180,7 +180,7 @@ export function ChessChat({
   const contextualQuestions = activeMove && activeMove.san
     ? [
         `Почему это ${activeMove.classification}?`,
-        'Какое опровержение нашел Stockfish?',
+        'Какое опровержение нашел Stockfish 19 Lite?',
         `Что было бы при ходе ${activeMove.bestMove || activeMove.san}?`,
       ]
     : GENERAL_QUESTIONS;
@@ -213,7 +213,7 @@ export function ChessChat({
                 ChessCheese Bot
               </h3>
               <span className="text-[10px] font-black tracking-wider uppercase px-2 py-0.5 rounded bg-[#fbbf24]/20 border border-[#fbbf24]/40 text-[#fbbf24]">
-                Stockfish + Gemini
+                Stockfish 19 Lite + AI
               </span>
             </div>
             <div className="flex items-center gap-2 text-xs text-zinc-400 mt-0.5">
@@ -292,7 +292,7 @@ export function ChessChat({
 
             <button
               type="button"
-              onClick={() => handleSendMessage('Какое опровержение нашел Stockfish?')}
+              onClick={() => handleSendMessage('Какое опровержение нашел Stockfish 19 Lite?')}
               disabled={isLoading}
               className={`text-xs px-3 py-1.5 rounded-xl border font-medium transition-all cursor-pointer touch-manipulation disabled:opacity-50 ${
                 isChessCom
@@ -300,7 +300,7 @@ export function ChessChat({
                   : 'bg-[#1c1a17] hover:bg-[#292723] text-zinc-200 border-[#33312c] hover:border-[#fbbf24]/50 hover:text-white'
               } active:scale-95`}
             >
-              «Какое опровержение нашел Stockfish?»
+              «Какое опровержение нашел Stockfish 19 Lite?»
             </button>
 
             <button
@@ -386,7 +386,7 @@ export function ChessChat({
               }`}
             >
               <Loader2 className="w-4 h-4 animate-spin text-[#fbbf24]" />
-              <span>Гроссмейстер анализирует позицию со Stockfish...</span>
+              <span>Гроссмейстер анализирует позицию со Stockfish 19 Lite...</span>
             </div>
           </div>
         )}
@@ -447,7 +447,7 @@ export function ChessChat({
             type="text"
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
-            placeholder="Спроси тренера о ходе, опровержении Stockfish или плане..."
+            placeholder="Спроси наставника о ходе, опровержении Stockfish 19 Lite или плане..."
             disabled={isLoading}
             className={`w-full text-xs sm:text-sm text-white placeholder:text-zinc-500 rounded-xl px-4 py-3 outline-none border transition-all ${
               isChessCom

@@ -5,18 +5,15 @@ import { createClient } from '@/lib/supabase/client';
 import {
   Eye,
   EyeOff,
-  GraduationCap,
   Loader2,
   Lock,
   Mail,
   User,
-  Users,
 } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { FormEvent, Suspense, useCallback, useEffect, useState } from 'react';
 
 type AuthTab = 'login' | 'register';
-type UserRole = 'student' | 'trainer';
 
 interface FormErrors {
   email?: string;
@@ -69,7 +66,6 @@ function AuthPageContent() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
-  const [role, setRole] = useState<UserRole>('student');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<FormErrors>({});
@@ -126,13 +122,8 @@ function AuthPageContent() {
       return;
     }
 
-    // Determine redirect based on user role
-    const userRole = data.user?.user_metadata?.role as string | undefined;
-    if (userRole === 'trainer') {
-      router.push('/dashboard/trainer');
-    } else {
-      router.push('/');
-    }
+    // Redirect to main page
+    router.push('/');
   };
 
   const handleRegister = async (e: FormEvent) => {
@@ -159,7 +150,6 @@ function AuthPageContent() {
       options: {
         data: {
           full_name: fullName.trim(),
-          role,
         },
       },
     });
@@ -171,13 +161,7 @@ function AuthPageContent() {
     }
 
     if (data.session) {
-      // If email confirmation is disabled, redirect immediately!
-      const userRole = data.user?.user_metadata?.role as string | undefined;
-      if (userRole === 'trainer') {
-        router.push('/dashboard/trainer');
-      } else {
-        router.push('/');
-      }
+      router.push('/');
       return;
     }
 
@@ -414,39 +398,6 @@ function AuthPageContent() {
               {errors.password && (
                 <p className="mt-1.5 text-xs text-red-400">{errors.password}</p>
               )}
-            </div>
-
-            {/* Role Selector */}
-            <div>
-              <label className="mb-2 block text-sm font-medium text-[#c3c2c1]">
-                Я —
-              </label>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => setRole('student')}
-                  className={`flex items-center justify-center gap-2 rounded-xl border py-3 text-sm font-medium transition-all duration-200 ${
-                    role === 'student'
-                      ? 'border-[#fbbf24]/50 bg-[#fbbf24]/10 text-[#fbbf24] shadow-lg shadow-[#fbbf24]/10'
-                      : 'border-[#302e2b] bg-[#161512] text-[#c3c2c1] hover:border-[#4a4744] hover:text-white'
-                  }`}
-                >
-                  <Users className="h-4 w-4" />
-                  Ученик
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setRole('trainer')}
-                  className={`flex items-center justify-center gap-2 rounded-xl border py-3 text-sm font-medium transition-all duration-200 ${
-                    role === 'trainer'
-                      ? 'border-[#fbbf24]/50 bg-[#fbbf24]/10 text-[#fbbf24] shadow-lg shadow-[#fbbf24]/10'
-                      : 'border-[#302e2b] bg-[#161512] text-[#c3c2c1] hover:border-[#4a4744] hover:text-white'
-                  }`}
-                >
-                  <GraduationCap className="h-4 w-4" />
-                  Тренер
-                </button>
-              </div>
             </div>
 
             {/* Submit */}

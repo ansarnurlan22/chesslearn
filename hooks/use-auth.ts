@@ -8,7 +8,7 @@ export interface UserProfile {
   id: string;
   email: string;
   full_name: string;
-  role: 'student' | 'trainer';
+  role?: string | null;
   chess_username: string | null;
   chess_platform: 'lichess' | 'chesscom' | null;
   avatar_url: string | null;

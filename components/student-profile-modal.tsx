@@ -215,15 +215,6 @@ export function StudentProfileModal({
             <div>
               <h2 className="text-lg font-bold text-white flex items-center gap-2">
                 <span>Профиль шахматиста</span>
-                <span
-                  className={`text-[10px] uppercase font-mono px-2 py-0.5 rounded-full border ${
-                    profile?.role === 'trainer'
-                      ? 'bg-amber-500/15 border-amber-500/30 text-amber-300'
-                      : 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300'
-                  }`}
-                >
-                  {profile?.role === 'trainer' ? 'Тренер' : 'Ученик'}
-                </span>
               </h2>
               <p className="text-xs text-zinc-400">
                 {profile?.email || 'Личный кабинет и статистика'}
@@ -302,17 +293,6 @@ export function StudentProfileModal({
                     <Edit2 className="w-3.5 h-3.5" />
                     <span>{isEditing ? 'Отмена' : 'Редактировать'}</span>
                   </button>
-
-                  {profile?.role === 'trainer' && (
-                    <Link
-                      href="/dashboard/trainer"
-                      onClick={onClose}
-                      className="px-3 py-1.5 rounded-xl border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 text-xs font-semibold flex items-center gap-1.5 transition-all"
-                    >
-                      <GraduationCap className="w-3.5 h-3.5" />
-                      <span>Панель тренера</span>
-                    </Link>
-                  )}
                 </div>
               </div>
 

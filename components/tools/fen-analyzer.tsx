@@ -122,7 +122,7 @@ export function FenAnalyzer() {
           <div className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Результат анализа</div>
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-1">
-              <span className="text-xs text-zinc-500">Оценка Stockfish</span>
+              <span className="text-xs text-zinc-500">Оценка Stockfish 19 Lite</span>
               <span className={`text-3xl font-bold font-mono ${evalColor}`}>
                 {evalNum !== null && evalNum > 0 ? '+' : ''}{result.eval}
               </span>

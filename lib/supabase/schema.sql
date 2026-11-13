@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   email TEXT NOT NULL,
   full_name TEXT NOT NULL,
-  role TEXT NOT NULL CHECK (role IN ('student', 'trainer')) DEFAULT 'student',
+  role TEXT DEFAULT 'user',
   chess_username TEXT,
   chess_platform TEXT CHECK (chess_platform IN ('lichess', 'chesscom')),
   avatar_url TEXT,
@@ -108,7 +108,7 @@ BEGIN
     NEW.id,
     NEW.email,
     COALESCE(NEW.raw_user_meta_data->>'full_name', ''),
-    COALESCE(NEW.raw_user_meta_data->>'role', 'student')
+    COALESCE(NEW.raw_user_meta_data->>'role', 'user')
   )
   ON CONFLICT (id) DO UPDATE SET
     full_name = EXCLUDED.full_name,
