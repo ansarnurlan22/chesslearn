@@ -16,6 +16,13 @@ import { OpeningExplorer } from '@/components/tools/opening-explorer';
 import { PgnAnalyzer } from '@/components/tools/pgn-analyzer';
 import { PieceMovesDrill } from '@/components/tools/piece-moves-drill';
 import { RoundRobinGenerator } from '@/components/tools/round-robin-generator';
+import { BrainGames } from '@/components/train/brain-games';
+import { BlunderShield } from '@/components/train/blunder-shield';
+import { ConversionTrainer } from '@/components/train/conversion-trainer';
+import { DailyPuzzle } from '@/components/train/daily-puzzle';
+import { OpeningTrainer } from '@/components/train/opening-trainer';
+import { TrainHub } from '@/components/train/train-hub';
+import { WoodpeckerTrainer } from '@/components/train/woodpecker-trainer';
 import { useAuth } from '@/hooks/use-auth';
 import type { ChessPlatform, UnifiedGame, UnifiedPlayerProfile } from '@/lib/api/types';
 import { CLASSIFICATION_META } from '@/lib/chess-classifier';
@@ -25,6 +32,7 @@ import {
   AlertCircle,
   BookOpen,
   Bot,
+  Brain,
   Calculator,
   Calendar,
   CheckCircle2,
@@ -38,12 +46,14 @@ import {
   FileText,
   Flame,
   Globe,
+  GraduationCap,
   Loader2,
   LogOut,
   Menu,
   MinusCircle,
   Scan,
   Search,
+  Shield,
   Sparkles,
   Swords,
   Target,
@@ -61,6 +71,13 @@ import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
 
 export type DashboardTab =
   | 'analysis'
+  | 'trainHub'
+  | 'trainWoodpecker'
+  | 'trainDaily'
+  | 'trainOpenings'
+  | 'trainBlunder'
+  | 'trainConversion'
+  | 'trainBrain'
   | 'analysisBoard'
   | 'editor'
   | 'boardSetup'
@@ -70,6 +87,66 @@ export type DashboardTab =
   | 'roundRobin'
   | 'openings'
   | 'status';
+
+export interface TrainItem {
+  id: DashboardTab;
+  label: string;
+  shortDesc: string;
+  icon: React.ElementType;
+  badge?: string;
+  category: 'Тактика' | 'Мастерство' | 'Когнитивные';
+}
+
+export const TRAIN_ITEMS: TrainItem[] = [
+  {
+    id: 'trainWoodpecker',
+    label: 'Метод Дятла',
+    shortDesc: 'Интервальное повторение тактики в 5 циклов',
+    icon: Zap,
+    badge: '5 циклов',
+    category: 'Тактика',
+  },
+  {
+    id: 'trainDaily',
+    label: 'Задача дня & Календарь',
+    shortDesc: 'Ежедневная тактика с серией побед',
+    icon: Calendar,
+    badge: 'Стрик',
+    category: 'Тактика',
+  },
+  {
+    id: 'trainOpenings',
+    label: 'Тренер дебютов',
+    shortDesc: '4 режима: Обучение, Практика, Арена, Стрик',
+    icon: BookOpen,
+    badge: '4 режима',
+    category: 'Мастерство',
+  },
+  {
+    id: 'trainBlunder',
+    label: 'Щит от зевков',
+    shortDesc: 'Поиск угроз и защита от тактических ловушек',
+    icon: Shield,
+    badge: 'Оборона',
+    category: 'Мастерство',
+  },
+  {
+    id: 'trainConversion',
+    label: 'Реализация перевеса',
+    shortDesc: 'Доведение позиций (+3..+5) до победы против бота',
+    icon: Swords,
+    badge: 'Миттельшпиль',
+    category: 'Мастерство',
+  },
+  {
+    id: 'trainBrain',
+    label: 'Brain Gym (Фитнес мозга)',
+    shortDesc: 'Square Rush, 8 Ферзей и игра вслепую',
+    icon: Brain,
+    badge: 'Спринт',
+    category: 'Когнитивные',
+  },
+];
 
 export interface ToolItem {
   id: DashboardTab;
@@ -177,8 +254,11 @@ export function ChessDashboard({
   const [activeTab, setActiveTab] = useState<DashboardTab>(tabParam || 'analysis');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isToolsFlyoutOpen, setIsToolsFlyoutOpen] = useState(false);
+  const [isTrainFlyoutOpen, setIsTrainFlyoutOpen] = useState(false);
   const [isMobileToolsAccordionOpen, setIsMobileToolsAccordionOpen] = useState(true);
+  const [isMobileTrainAccordionOpen, setIsMobileTrainAccordionOpen] = useState(true);
   const flyoutTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const trainFlyoutTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const handleToolsMouseEnter = () => {
     if (flyoutTimerRef.current) {
@@ -194,15 +274,34 @@ export function ChessDashboard({
     }, 200);
   };
 
+  const handleTrainMouseEnter = () => {
+    if (trainFlyoutTimerRef.current) {
+      clearTimeout(trainFlyoutTimerRef.current);
+      trainFlyoutTimerRef.current = null;
+    }
+    setIsTrainFlyoutOpen(true);
+  };
+
+  const handleTrainMouseLeave = () => {
+    trainFlyoutTimerRef.current = setTimeout(() => {
+      setIsTrainFlyoutOpen(false);
+    }, 200);
+  };
+
   useEffect(() => {
     return () => {
       if (flyoutTimerRef.current) {
         clearTimeout(flyoutTimerRef.current);
       }
+      if (trainFlyoutTimerRef.current) {
+        clearTimeout(trainFlyoutTimerRef.current);
+      }
     };
   }, []);
 
-  const isToolActive = activeTab !== 'analysis';
+  const isTrainActive = activeTab.startsWith('train');
+  const currentActiveTrain = TRAIN_ITEMS.find((t) => t.id === activeTab);
+  const isToolActive = TOOLS_ITEMS.some((t) => t.id === activeTab);
   const currentActiveTool = TOOLS_ITEMS.find((t) => t.id === activeTab);
   const [analysisFen, setAnalysisFen] = useState<string | undefined>(undefined);
   const [editorFen, setEditorFen] = useState<string | undefined>(undefined);
@@ -447,7 +546,85 @@ export function ChessDashboard({
               </span>
             </button>
 
-            {/* 2. Инструменты (Аккордеон) */}
+            {/* 2. Тренировки (Аккордеон) */}
+            <div className="flex flex-col rounded-xl border border-[#302e2b] bg-[#1a1815] overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setIsMobileTrainAccordionOpen(!isMobileTrainAccordionOpen)}
+                className={`flex items-center justify-between px-3.5 py-3 text-sm font-semibold transition-all cursor-pointer ${
+                  isTrainActive
+                    ? isChessCom
+                      ? 'text-[#81b64c]'
+                      : 'text-[#3692e7]'
+                    : 'text-zinc-300'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <GraduationCap className="w-5 h-5" />
+                  <span>Тренировки</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  {currentActiveTrain && (
+                    <span className="text-[10px] px-2 py-0.5 rounded bg-[#211f1c] text-zinc-300 border border-[#302e2b]">
+                      {currentActiveTrain.label}
+                    </span>
+                  )}
+                  <ChevronDown
+                    className={`w-4 h-4 transition-transform duration-200 ${
+                      isMobileTrainAccordionOpen ? 'rotate-180' : ''
+                    }`}
+                  />
+                </div>
+              </button>
+
+              {isMobileTrainAccordionOpen && (
+                <div className="p-2 border-t border-[#302e2b] bg-[#161512] flex flex-col gap-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveTab('trainHub');
+                      setIsMobileMenuOpen(false);
+                    }}
+                    className="flex items-center justify-between p-2.5 rounded-lg text-xs font-bold text-amber-400 hover:bg-[#211f1c] text-left cursor-pointer"
+                  >
+                    <span>★ Все тренировки (Центр)</span>
+                  </button>
+                  {TRAIN_ITEMS.map((train) => {
+                    const TrainIcon = train.icon;
+                    const isItemActive = activeTab === train.id;
+                    return (
+                      <button
+                        key={train.id}
+                        type="button"
+                        onClick={() => {
+                          setActiveTab(train.id);
+                          setIsMobileMenuOpen(false);
+                        }}
+                        className={`flex items-center justify-between p-2.5 rounded-lg text-xs font-medium transition-all text-left cursor-pointer ${
+                          isItemActive
+                            ? isChessCom
+                              ? 'bg-[#81b64c]/20 text-[#81b64c] font-bold border border-[#81b64c]/40'
+                              : 'bg-[#3692e7]/20 text-[#3692e7] font-bold border border-[#3692e7]/40'
+                            : 'text-zinc-400 hover:text-white hover:bg-[#211f1c]'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <TrainIcon className="w-4 h-4" />
+                          <span>{train.label}</span>
+                        </div>
+                        {train.badge && (
+                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-[#211f1c] text-zinc-500">
+                            {train.badge}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* 3. Инструменты (Аккордеон) */}
             <div className="flex flex-col rounded-xl border border-[#302e2b] bg-[#1a1815] overflow-hidden">
               <button
                 type="button"
@@ -629,7 +806,133 @@ export function ChessDashboard({
             </span>
           </button>
 
-          {/* 2. Единая кнопка "Инструменты" с выпадающим меню вариантов при наведении */}
+          {/* 2. Единая кнопка "Тренировки" с выпадающим меню вариантов при наведении */}
+          <div
+            className="relative"
+            onMouseEnter={handleTrainMouseEnter}
+            onMouseLeave={handleTrainMouseLeave}
+          >
+            <button
+              type="button"
+              onClick={() => {
+                if (activeTab === 'analysis' || isToolActive) {
+                  setActiveTab('trainHub');
+                }
+                setIsTrainFlyoutOpen(!isTrainFlyoutOpen);
+              }}
+              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl font-medium text-xs transition-all cursor-pointer text-left ${
+                isTrainActive
+                  ? isChessCom
+                    ? 'bg-[#81b64c]/15 text-[#81b64c] border border-[#81b64c]/30 font-semibold shadow-sm'
+                    : 'bg-[#3692e7]/15 text-[#3692e7] border border-[#3692e7]/30 font-semibold shadow-sm'
+                  : 'text-zinc-400 hover:text-white hover:bg-[#211f1c]'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <GraduationCap
+                  className={`w-4 h-4 ${
+                    isTrainActive
+                      ? isChessCom
+                        ? 'text-[#81b64c]'
+                        : 'text-[#3692e7]'
+                      : 'text-zinc-500'
+                  }`}
+                />
+                <span>Тренировки</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                {currentActiveTrain && (
+                  <span className="text-[9px] max-w-[70px] truncate px-1.5 py-0.5 rounded bg-[#211f1c] text-zinc-300 border border-[#302e2b]">
+                    {currentActiveTrain.label.split(' ')[0]}
+                  </span>
+                )}
+                <ChevronRight
+                  className={`w-3.5 h-3.5 text-zinc-500 transition-transform duration-200 ${
+                    isTrainFlyoutOpen ? 'translate-x-0.5 text-white' : ''
+                  }`}
+                />
+              </div>
+            </button>
+
+            {/* Flyout Popover Menu — высвечивается при наводке */}
+            {isTrainFlyoutOpen && (
+              <div
+                className="absolute left-[calc(100%+8px)] top-0 z-50 w-80 rounded-2xl bg-[#1c1a17]/98 border border-[#302e2b] shadow-2xl p-2.5 backdrop-blur-xl animate-in fade-in slide-in-from-left-2 duration-150 before:absolute before:-left-3 before:top-0 before:w-4 before:h-full before:content-['']"
+                onMouseEnter={handleTrainMouseEnter}
+                onMouseLeave={handleTrainMouseLeave}
+              >
+                <div className="flex items-center justify-between px-2.5 py-1.5 border-b border-[#302e2b] mb-1.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveTab('trainHub');
+                      setIsTrainFlyoutOpen(false);
+                    }}
+                    className="text-[10px] font-bold uppercase tracking-wider text-amber-400 hover:underline flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <GraduationCap className="w-3.5 h-3.5 text-amber-400" />
+                    Центр тренировок
+                  </button>
+                  <span className="text-[10px] text-zinc-500 font-mono">
+                    {TRAIN_ITEMS.length} режима
+                  </span>
+                </div>
+
+                <div className="max-h-[calc(100vh-140px)] overflow-y-auto space-y-1 pr-1">
+                  {TRAIN_ITEMS.map((train) => {
+                    const TrainIcon = train.icon;
+                    const isItemActive = activeTab === train.id;
+                    return (
+                      <button
+                        key={train.id}
+                        type="button"
+                        onClick={() => {
+                          setActiveTab(train.id);
+                          setIsTrainFlyoutOpen(false);
+                        }}
+                        className={`w-full flex items-start gap-3 p-2 rounded-xl text-left transition-all cursor-pointer group ${
+                          isItemActive
+                            ? isChessCom
+                              ? 'bg-[#81b64c]/20 text-white border border-[#81b64c]/40 shadow-sm'
+                              : 'bg-[#3692e7]/20 text-white border border-[#3692e7]/40 shadow-sm'
+                            : 'text-zinc-300 hover:text-white hover:bg-[#262420] border border-transparent'
+                        }`}
+                      >
+                        <div
+                          className={`p-1.5 rounded-lg mt-0.5 shrink-0 ${
+                            isItemActive
+                              ? isChessCom
+                                ? 'bg-[#81b64c] text-white shadow-sm'
+                                : 'bg-[#3692e7] text-white shadow-sm'
+                              : 'bg-[#262420] text-zinc-400 group-hover:text-white group-hover:bg-[#302e2b]'
+                          }`}
+                        >
+                          <TrainIcon className="w-4 h-4" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-1">
+                            <span className="text-xs font-bold text-white truncate">
+                              {train.label}
+                            </span>
+                            {train.badge && (
+                              <span className="text-[9px] px-1.5 py-0.2 rounded bg-[#161512] text-zinc-400 border border-[#302e2b] font-mono shrink-0">
+                                {train.badge}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[10px] text-zinc-500 line-clamp-1 mt-0.5 font-normal">
+                            {train.shortDesc}
+                          </p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* 3. Единая кнопка "Инструменты" с выпадающим меню вариантов при наведении */}
           <div
             className="relative"
             onMouseEnter={handleToolsMouseEnter}
@@ -1401,6 +1704,55 @@ export function ChessDashboard({
       </main>
       )}
 
+        {/* Tab: Train Hub */}
+        {activeTab === 'trainHub' && (
+          <main className="flex-1 w-full max-w-6xl mx-auto px-4 sm:px-6 py-8">
+            <TrainHub onSelectTrack={(track) => setActiveTab(track as DashboardTab)} />
+          </main>
+        )}
+
+        {/* Tab: Woodpecker Trainer */}
+        {activeTab === 'trainWoodpecker' && (
+          <main className="flex-1 w-full max-w-6xl mx-auto px-4 sm:px-6 py-8">
+            <WoodpeckerTrainer />
+          </main>
+        )}
+
+        {/* Tab: Daily Puzzle & Calendar */}
+        {activeTab === 'trainDaily' && (
+          <main className="flex-1 w-full max-w-6xl mx-auto px-4 sm:px-6 py-8">
+            <DailyPuzzle />
+          </main>
+        )}
+
+        {/* Tab: Opening Repertoire Trainer */}
+        {activeTab === 'trainOpenings' && (
+          <main className="flex-1 w-full max-w-6xl mx-auto px-4 sm:px-6 py-8">
+            <OpeningTrainer />
+          </main>
+        )}
+
+        {/* Tab: Blunder Shield */}
+        {activeTab === 'trainBlunder' && (
+          <main className="flex-1 w-full max-w-6xl mx-auto px-4 sm:px-6 py-8">
+            <BlunderShield />
+          </main>
+        )}
+
+        {/* Tab: Conversion Trainer */}
+        {activeTab === 'trainConversion' && (
+          <main className="flex-1 w-full max-w-6xl mx-auto px-4 sm:px-6 py-8">
+            <ConversionTrainer />
+          </main>
+        )}
+
+        {/* Tab: Brain Games */}
+        {activeTab === 'trainBrain' && (
+          <main className="flex-1 w-full max-w-6xl mx-auto px-4 sm:px-6 py-8">
+            <BrainGames />
+          </main>
+        )}
+
         {/* Tab: Analysis Board (Interactive Stockfish 19 Lite Board) */}
         {activeTab === 'analysisBoard' && (
           <main className="flex-1 w-full max-w-5xl mx-auto px-4 sm:px-6 py-8">
@@ -1598,6 +1950,27 @@ export function ChessDashboard({
         >
           <Swords className="w-4 h-4" />
           <span>Обзор</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            if (!isTrainActive) {
+              setActiveTab('trainHub');
+            }
+            setIsMobileMenuOpen(true);
+            setIsMobileTrainAccordionOpen(true);
+          }}
+          className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-lg transition-colors cursor-pointer ${
+            isTrainActive
+              ? isChessCom
+                ? 'text-[#81b64c] font-bold'
+                : 'text-[#3692e7] font-bold'
+              : 'text-zinc-500 hover:text-zinc-300'
+          }`}
+        >
+          <GraduationCap className="w-4 h-4" />
+          <span>Тренировка</span>
         </button>
 
         <button
