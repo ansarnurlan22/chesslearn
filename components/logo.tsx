@@ -132,10 +132,17 @@ export function Logo({ className = '', iconOnly = false, size = 'md' }: LogoProp
       </div>
 
       {!iconOnly && (
-        <div className="flex items-center leading-none tracking-tight">
-          <span className={`font-black text-white ${textSizes[size]}`}>Chess</span>
-          <span className={`font-black text-[#fbbf24] ${textSizes[size]} ml-0.5 drop-shadow-[0_1px_4px_rgba(251,191,36,0.25)]`}>
-            Cheese
+        <div className="flex flex-col leading-none">
+          <div className="flex items-center leading-none tracking-tight">
+            <span className={`font-pixel text-white ${size === 'sm' ? 'text-[11px]' : size === 'lg' ? 'text-lg' : 'text-sm'}`}>
+              CHESS
+            </span>
+            <span className={`font-pixel text-[#fbbf24] ${size === 'sm' ? 'text-[11px]' : size === 'lg' ? 'text-lg' : 'text-sm'} ml-1 drop-shadow-[2px_2px_0px_#000]`}>
+              CHEESE
+            </span>
+          </div>
+          <span className="text-[8px] font-pixel-sm text-zinc-500 tracking-wider mt-1">
+            8-BIT CHESS
           </span>
         </div>
       )}

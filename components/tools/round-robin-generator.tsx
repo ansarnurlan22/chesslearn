@@ -1,6 +1,7 @@
 'use client';
 
 import { generateRoundRobin, type Round } from '@/lib/engine/round-robin';
+import { sfx } from '@/lib/sound-effects';
 import {
   Calendar,
   Check,
@@ -36,6 +37,7 @@ export function RoundRobinGenerator() {
   }, [playerNames, isDouble]);
 
   const handleShuffle = () => {
+    sfx.playMove();
     const list = [...playerNames];
     for (let i = list.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
@@ -47,6 +49,7 @@ export function RoundRobinGenerator() {
   const handleCopyLink = async () => {
     try {
       await navigator.clipboard.writeText(window.location.href);
+      sfx.playSuccess();
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
@@ -55,19 +58,20 @@ export function RoundRobinGenerator() {
   };
 
   const handlePrint = () => {
+    sfx.playSuccess();
     window.print();
   };
 
   return (
     <div className="flex flex-col gap-6 w-full">
       {/* Input & Options Box */}
-      <div className="rounded-2xl border border-[#302e2b] bg-[#161512] p-5 flex flex-col gap-4">
+      <div className="pixel-card p-5 flex flex-col gap-4">
         <div className="flex items-center justify-between">
-          <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">
-            Список участников (по одному на строке, от 3 до 20)
+          <label className="font-pixel-sm text-[10px] text-zinc-300 uppercase tracking-wider">
+            [ УЧАСТНИКИ ]
           </label>
-          <span className="text-xs text-[#81b64c] font-semibold">
-            {playerNames.length} игроков
+          <span className="font-pixel-sm text-[10px] text-[#81b64c]">
+            {playerNames.length} ИГРОКОВ
           </span>
         </div>
 
@@ -76,20 +80,23 @@ export function RoundRobinGenerator() {
           value={playersText}
           onChange={(e) => setPlayersText(e.target.value)}
           placeholder="Вставьте имена игроков..."
-          className="w-full bg-[#211f1c] border border-[#302e2b] rounded-xl p-3 text-white text-xs font-mono outline-none focus:border-[#81b64c]"
+          className="w-full bg-[#161512] border-2 border-zinc-700/80 rounded-none p-3 text-white text-xs font-mono outline-none focus:border-[#81b64c] shadow-inner"
         />
 
         {/* Action Controls */}
-        <div className="flex items-center justify-between flex-wrap gap-3 pt-2 border-t border-[#302e2b]">
+        <div className="flex items-center justify-between flex-wrap gap-3 pt-3 border-t-2 border-zinc-800">
           <div className="flex items-center gap-3">
-            <label className="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer">
+            <label className="flex items-center gap-2 text-xs font-pixel-sm text-zinc-300 cursor-pointer select-none">
               <input
                 type="checkbox"
                 checked={isDouble}
-                onChange={(e) => setIsDouble(e.target.checked)}
-                className="rounded border-[#302e2b] bg-[#211f1c] text-[#81b64c] focus:ring-0"
+                onChange={(e) => {
+                  sfx.playMove();
+                  setIsDouble(e.target.checked);
+                }}
+                className="w-4 h-4 rounded-none border-2 border-zinc-600 bg-[#211f1c] text-[#81b64c] focus:ring-0 cursor-pointer"
               />
-              <span>В 2 круга (белыми и чёрными)</span>
+              <span>В 2 КРУГА (БЕЛЫМИ И ЧЁРНЫМИ)</span>
             </label>
           </div>
 
@@ -97,18 +104,21 @@ export function RoundRobinGenerator() {
             <button
               type="button"
               onClick={handleShuffle}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#302e2b] bg-[#211f1c] hover:bg-[#262421] text-zinc-300 hover:text-white text-xs font-semibold cursor-pointer"
+              className="pixel-btn text-[10px] flex items-center gap-1.5 px-3 py-2 cursor-pointer bg-amber-500/10 border-amber-500/40 text-amber-300 hover:bg-amber-500/20"
             >
               <Shuffle className="w-3.5 h-3.5 text-amber-400" />
-              <span>Жеребьёвка (перемешать)</span>
+              <span>ЖЕРЕБЬЁВКА</span>
             </button>
             <button
               type="button"
-              onClick={() => setPlayersText('')}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#302e2b] bg-[#211f1c] hover:bg-[#262421] text-zinc-400 hover:text-red-400 text-xs font-semibold cursor-pointer"
+              onClick={() => {
+                sfx.playError();
+                setPlayersText('');
+              }}
+              className="pixel-btn text-[10px] flex items-center gap-1.5 px-3 py-2 cursor-pointer text-zinc-400 hover:text-red-400"
             >
               <Trash2 className="w-3.5 h-3.5" />
-              <span>Очистить</span>
+              <span>ОЧИСТИТЬ</span>
             </button>
           </div>
         </div>
@@ -117,17 +127,17 @@ export function RoundRobinGenerator() {
       {/* Summary Badges & Print/Share */}
       {rounds.length > 0 && (
         <div className="flex items-center justify-between flex-wrap gap-4">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#211f1c] border border-[#302e2b] text-xs font-semibold text-white">
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="pixel-badge text-[9px] flex items-center gap-1.5">
               <Users className="w-3.5 h-3.5 text-[#81b64c]" />
-              <span>Участников: {playerNames.length}</span>
+              <span>ИГРОКОВ: {playerNames.length}</span>
             </div>
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#211f1c] border border-[#302e2b] text-xs font-semibold text-white">
+            <div className="pixel-badge text-[9px] flex items-center gap-1.5">
               <Calendar className="w-3.5 h-3.5 text-amber-400" />
-              <span>Туров: {rounds.length}</span>
+              <span>ТУРОВ: {rounds.length}</span>
             </div>
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#211f1c] border border-[#302e2b] text-xs font-semibold text-white">
-              <span>Партий всего: {totalGames}</span>
+            <div className="pixel-badge text-[9px] flex items-center gap-1.5 text-zinc-300">
+              <span>ПАРТИЙ: {totalGames}</span>
             </div>
           </div>
 
@@ -135,18 +145,18 @@ export function RoundRobinGenerator() {
             <button
               type="button"
               onClick={handleCopyLink}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#302e2b] bg-[#211f1c] hover:bg-[#262421] text-zinc-300 hover:text-white text-xs font-semibold cursor-pointer"
+              className="pixel-btn text-[10px] flex items-center gap-1.5 px-3 py-1.5 cursor-pointer text-zinc-300 hover:text-white"
             >
-              {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-              <span>{copied ? 'Скопировано!' : 'Поделиться'}</span>
+              {copied ? <Check className="w-3.5 h-3.5 text-[#81b64c]" /> : <Copy className="w-3.5 h-3.5" />}
+              <span>{copied ? 'СКОПИРОВАНО!' : 'ССЫЛКА'}</span>
             </button>
             <button
               type="button"
               onClick={handlePrint}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#302e2b] bg-[#211f1c] hover:bg-[#262421] text-zinc-300 hover:text-white text-xs font-semibold cursor-pointer"
+              className="pixel-btn text-[10px] flex items-center gap-1.5 px-3 py-1.5 cursor-pointer text-zinc-300 hover:text-white"
             >
               <Printer className="w-3.5 h-3.5 text-blue-400" />
-              <span>Печать таблицы</span>
+              <span>ПЕЧАТЬ ТАБЛИЦЫ</span>
             </button>
           </div>
         </div>
@@ -157,34 +167,35 @@ export function RoundRobinGenerator() {
         {rounds.map((round) => (
           <div
             key={round.roundNumber}
-            className="rounded-2xl border border-[#302e2b] bg-[#161512] p-4 flex flex-col gap-3 shadow-sm"
+            className="pixel-card p-4 flex flex-col gap-3"
           >
-            <div className="flex items-center justify-between pb-2 border-b border-[#302e2b]">
-              <span className="text-xs font-black uppercase text-white tracking-wider">
-                Тур {round.roundNumber}
+            <div className="flex items-center justify-between pb-2 border-b-2 border-zinc-800">
+              <span className="font-pixel-sm text-[11px] text-white tracking-wider flex items-center gap-2">
+                <span className="w-2 h-2 bg-[#81b64c]" />
+                ТУР {round.roundNumber}
               </span>
               {round.byePlayer && (
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-300 font-semibold">
-                  Выходной: {round.byePlayer}
+                <span className="font-pixel-sm text-[8px] px-2 py-0.5 bg-amber-500/10 border border-amber-500/40 text-amber-300">
+                  ВЫХОДНОЙ: {round.byePlayer}
                 </span>
               )}
             </div>
 
-            <div className="flex flex-col divide-y divide-[#302e2b]/50 text-xs">
+            <div className="flex flex-col divide-y divide-zinc-800/80 text-xs">
               {round.pairings.map((p) => (
                 <div
                   key={p.board}
-                  className="py-2 flex items-center justify-between gap-2"
+                  className="py-2.5 flex items-center justify-between gap-2"
                 >
-                  <span className="text-zinc-600 font-mono w-6">#{p.board}</span>
-                  <div className="flex-1 font-semibold text-white flex items-center gap-1.5 truncate">
-                    <span className="w-2.5 h-2.5 rounded-full bg-white border border-zinc-400 shrink-0" />
+                  <span className="font-pixel-sm text-[9px] text-zinc-500 w-8">#{p.board}</span>
+                  <div className="flex-1 font-semibold text-white flex items-center gap-2 truncate">
+                    <span className="w-3 h-3 bg-white border border-zinc-400 shrink-0 shadow-[1px_1px_0_0_#000]" />
                     <span className="truncate">{p.white}</span>
                   </div>
-                  <span className="text-zinc-500 font-mono text-[10px] px-1">vs</span>
-                  <div className="flex-1 font-semibold text-zinc-300 flex items-center gap-1.5 truncate justify-end">
+                  <span className="font-pixel-sm text-[9px] text-amber-400/80 px-1">VS</span>
+                  <div className="flex-1 font-semibold text-zinc-300 flex items-center gap-2 truncate justify-end">
                     <span className="truncate">{p.black}</span>
-                    <span className="w-2.5 h-2.5 rounded-full bg-zinc-800 border border-zinc-600 shrink-0" />
+                    <span className="w-3 h-3 bg-zinc-900 border border-zinc-600 shrink-0 shadow-[1px_1px_0_0_#000]" />
                   </div>
                 </div>
               ))}

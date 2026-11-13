@@ -2,6 +2,7 @@
 
 import { Chess, type Square } from 'chess.js';
 import { useCallback, useEffect, useState } from 'react';
+import { sfx } from '@/lib/sound-effects';
 
 export interface DrillTarget {
   fen: string;
@@ -103,6 +104,7 @@ export function usePieceMovesDrill() {
 
   const toggleSquare = useCallback((square: string) => {
     if (feedback !== 'idle' || gameOver) return;
+    sfx.playMove();
     setSelectedSquares((prev) =>
       prev.includes(square) ? prev.filter((s) => s !== square) : [...prev, square],
     );
@@ -110,6 +112,7 @@ export function usePieceMovesDrill() {
 
   const clearSelection = useCallback(() => {
     if (feedback !== 'idle' || gameOver) return;
+    sfx.playMove();
     setSelectedSquares([]);
   }, [feedback, gameOver]);
 
@@ -122,14 +125,19 @@ export function usePieceMovesDrill() {
       selectedSquares.every((s) => legalSquares.includes(s));
 
     if (isExactMatch) {
+      sfx.playSuccess();
       setFeedback('correct');
       setScore((s) => s + 100);
       setTimeout(() => {
-        setLevel((l) => l + 1);
+        setLevel((l) => {
+          if (l % 5 === 0) sfx.playLevelUp();
+          return l + 1;
+        });
         setSelectedSquares([]);
         setFeedback('idle');
       }, 1200);
     } else {
+      sfx.playError();
       setFeedback('wrong');
       const nextLives = lives - 1;
       setLives(nextLives);

@@ -6,8 +6,10 @@ import {
   type PieceColor,
   type PieceType,
 } from '@/hooks/use-board-editor';
+import { sfx } from '@/lib/sound-effects';
 import {
   Check,
+  Compass,
   Copy,
   Eraser,
   Play,
@@ -41,6 +43,14 @@ const BLACK_PIECES: Array<{ type: PieceType; label: string; symbol: string }> = 
   { type: 'p', label: 'Пешка', symbol: '♟' },
 ];
 
+const PRESET_POSITIONS = [
+  { label: 'НАЧАЛЬНАЯ', fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1' },
+  { label: 'ОЧИСТИТЬ', fen: '8/8/8/8/8/8/8/8 w - - 0 1' },
+  { label: 'ЛАДЬЯ + КОРОЛЬ', fen: '8/8/8/4k3/8/8/8/R3K3 w - - 0 1' },
+  { label: 'ФЕРЗЬ + КОРОЛЬ', fen: '8/8/8/4k3/8/8/8/Q3K3 w - - 0 1' },
+  { label: 'ПЕШЕЧНЫЙ ЭНДШПИЛЬ', fen: '8/4k3/8/4p3/4P3/8/4K3/8 w - - 0 1' },
+];
+
 export function BoardEditor({ initialFen, onAnalyzePosition }: BoardEditorProps) {
   const {
     fen,
@@ -65,12 +75,14 @@ export function BoardEditor({ initialFen, onAnalyzePosition }: BoardEditorProps)
   const selectPiece = (type: PieceType, color: PieceColor) => {
     setIsEraser(false);
     setSelectedPiece({ type, color });
+    sfx.playMove();
   };
 
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(fen);
       setCopied(true);
+      sfx.playSuccess();
       setTimeout(() => setCopied(false), 2000);
     } catch {
       // ignore
@@ -78,25 +90,23 @@ export function BoardEditor({ initialFen, onAnalyzePosition }: BoardEditorProps)
   };
 
   return (
-    <div className="flex flex-col gap-6 w-full">
+    <div className="flex flex-col gap-6 w-full font-sans">
       {/* Piece Palette */}
-      <div className="rounded-2xl border border-[#302e2b] bg-[#161512] p-4 flex flex-col gap-3">
+      <div className="pixel-card bg-[#181612] p-4 flex flex-col gap-3">
         <div className="flex items-center justify-between">
-          <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">
-            Палитра фигур
+          <span className="text-[10px] font-pixel-sm text-zinc-400 uppercase tracking-wider">
+            ПАЛИТРА ФИГУР
           </span>
           {selectedPiece && (
-            <span className="text-xs text-[#81b64c] font-semibold">
-              Выбрано:{' '}
-              {selectedPiece.color === 'w' ? 'Белая' : 'Чёрная'}{' '}
-              {selectedPiece.type.toUpperCase()}
+            <span className="text-xs text-[#81b64c] font-pixel-sm font-bold">
+              ВЫБРАНО: {selectedPiece.color === 'w' ? 'БЕЛАЯ' : 'ЧЁРНАЯ'} {selectedPiece.type.toUpperCase()}
             </span>
           )}
         </div>
 
         {/* White pieces bank */}
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs text-zinc-500 font-semibold w-16">Белые:</span>
+          <span className="text-xs text-zinc-500 font-pixel-sm w-16">БЕЛЫЕ:</span>
           {WHITE_PIECES.map((p) => {
             const isSelected =
               !isEraser &&
@@ -107,10 +117,10 @@ export function BoardEditor({ initialFen, onAnalyzePosition }: BoardEditorProps)
                 key={`w-${p.type}`}
                 type="button"
                 onClick={() => selectPiece(p.type, 'w')}
-                className={`w-10 h-10 rounded-xl border flex items-center justify-center text-xl transition-all cursor-pointer ${
+                className={`pixel-btn w-10 h-10 flex items-center justify-center text-2xl cursor-pointer ${
                   isSelected
-                    ? 'border-[#81b64c] bg-[#81b64c]/20 text-white shadow-md'
-                    : 'border-[#302e2b] bg-[#211f1c] text-white hover:border-[#81b64c]/50'
+                    ? 'bg-[#81b64c] text-black border-[#81b64c]'
+                    : 'bg-[#211f1c] text-white border-[#302e2b]'
                 }`}
                 title={`Белый ${p.label}`}
               >
@@ -122,7 +132,7 @@ export function BoardEditor({ initialFen, onAnalyzePosition }: BoardEditorProps)
 
         {/* Black pieces bank */}
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs text-zinc-500 font-semibold w-16">Чёрные:</span>
+          <span className="text-xs text-zinc-500 font-pixel-sm w-16">ЧЁРНЫЕ:</span>
           {BLACK_PIECES.map((p) => {
             const isSelected =
               !isEraser &&
@@ -133,10 +143,10 @@ export function BoardEditor({ initialFen, onAnalyzePosition }: BoardEditorProps)
                 key={`b-${p.type}`}
                 type="button"
                 onClick={() => selectPiece(p.type, 'b')}
-                className={`w-10 h-10 rounded-xl border flex items-center justify-center text-xl transition-all cursor-pointer ${
+                className={`pixel-btn w-10 h-10 flex items-center justify-center text-2xl cursor-pointer ${
                   isSelected
-                    ? 'border-[#81b64c] bg-[#81b64c]/20 text-zinc-200 shadow-md'
-                    : 'border-[#302e2b] bg-[#211f1c] text-zinc-300 hover:border-[#81b64c]/50'
+                    ? 'bg-[#81b64c] text-black border-[#81b64c]'
+                    : 'bg-[#211f1c] text-zinc-300 border-[#302e2b]'
                 }`}
                 title={`Чёрный ${p.label}`}
               >
@@ -147,52 +157,83 @@ export function BoardEditor({ initialFen, onAnalyzePosition }: BoardEditorProps)
         </div>
 
         {/* Tool buttons: Eraser, Clear, Reset */}
-        <div className="flex gap-2 pt-2 border-t border-[#302e2b] flex-wrap">
+        <div className="flex gap-2 pt-2 border-t border-[#302e2b] flex-wrap items-center">
           <button
             type="button"
             onClick={() => {
               setIsEraser(true);
               setSelectedPiece(null);
+              sfx.playMove();
             }}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold cursor-pointer ${
+            className={`pixel-btn flex items-center gap-1.5 px-3 py-1.5 text-xs font-pixel-sm cursor-pointer ${
               isEraser
-                ? 'border-amber-500 bg-amber-500/20 text-amber-300'
-                : 'border-[#302e2b] bg-[#211f1c] text-zinc-400 hover:text-white'
+                ? 'bg-amber-500 text-black font-bold border-amber-600'
+                : 'bg-[#211f1c] text-zinc-400 hover:text-white border-[#302e2b]'
             }`}
           >
             <Eraser className="w-3.5 h-3.5" />
-            <span>Ластик</span>
+            <span>ЛАСТИК</span>
           </button>
           <button
             type="button"
-            onClick={clearBoard}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#302e2b] bg-[#211f1c] text-zinc-400 hover:text-red-400 text-xs font-semibold cursor-pointer"
+            onClick={() => {
+              clearBoard();
+              sfx.playMove();
+            }}
+            className="pixel-btn flex items-center gap-1.5 px-3 py-1.5 bg-[#211f1c] text-zinc-400 hover:text-red-400 text-xs font-pixel-sm cursor-pointer border-[#302e2b]"
           >
             <Trash2 className="w-3.5 h-3.5" />
-            <span>Очистить доску</span>
+            <span>ОЧИСТИТЬ</span>
           </button>
           <button
             type="button"
-            onClick={resetToStart}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#302e2b] bg-[#211f1c] text-zinc-400 hover:text-white text-xs font-semibold cursor-pointer"
+            onClick={() => {
+              resetToStart();
+              sfx.playSuccess();
+            }}
+            className="pixel-btn flex items-center gap-1.5 px-3 py-1.5 bg-[#211f1c] text-zinc-400 hover:text-white text-xs font-pixel-sm cursor-pointer border-[#302e2b]"
           >
             <RotateCcw className="w-3.5 h-3.5" />
-            <span>Начальная позиция</span>
+            <span>НАЧАЛЬНАЯ</span>
           </button>
+
+          {/* Quick presets */}
+          <div className="hidden sm:flex items-center gap-1.5 ml-auto">
+            {PRESET_POSITIONS.slice(2).map((preset) => (
+              <button
+                key={preset.label}
+                type="button"
+                onClick={() => {
+                  loadFen(preset.fen);
+                  sfx.playMove();
+                }}
+                className="pixel-btn px-2 py-1 text-[9px] font-pixel-sm bg-[#161512] text-zinc-400 hover:text-amber-400 border-[#302e2b]"
+              >
+                {preset.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
       {/* Board & Position Settings */}
       <div className="flex flex-col lg:flex-row gap-6 items-start">
         {/* Interactive Board */}
-        <div className="w-full max-w-[420px] aspect-square rounded-2xl overflow-hidden border border-[#302e2b] bg-[#211f1c] shadow-lg shrink-0">
+        <div className="w-full max-w-[420px] aspect-square border-4 border-[#2b2721] bg-[#211f1c] shadow-[6px_6px_0px_0px_#0c0b09] overflow-hidden shrink-0">
           <Chessboard
             options={{
               position: fen,
-              onSquareClick: ({ square }) => handleSquareClick(square),
-              onPieceDrop: ({ sourceSquare, targetSquare }) =>
-                targetSquare ? handlePieceDrop(sourceSquare, targetSquare) : false,
-              boardStyle: { borderRadius: '0.75rem' },
+              onSquareClick: ({ square }) => {
+                handleSquareClick(square);
+                sfx.playMove();
+              },
+              onPieceDrop: ({ sourceSquare, targetSquare }) => {
+                if (!targetSquare) return false;
+                const ok = handlePieceDrop(sourceSquare, targetSquare);
+                if (ok) sfx.playMove();
+                return ok;
+              },
+              boardStyle: { borderRadius: '0px' },
               darkSquareStyle: { backgroundColor: '#779952' },
               lightSquareStyle: { backgroundColor: '#edeed1' },
             }}
@@ -202,40 +243,46 @@ export function BoardEditor({ initialFen, onAnalyzePosition }: BoardEditorProps)
         {/* Position Rules & Castling */}
         <div className="flex-1 flex flex-col gap-4 w-full">
           {/* Turn selector */}
-          <div className="rounded-2xl border border-[#302e2b] bg-[#161512] p-4 flex flex-col gap-2">
-            <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">
-              Очерёдность хода
+          <div className="pixel-card bg-[#181612] p-4 flex flex-col gap-2">
+            <span className="text-[10px] font-pixel-sm text-zinc-400 uppercase tracking-wider">
+              ОЧЕРЁДНОСТЬ ХОДА
             </span>
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
-                onClick={() => turn === 'b' && toggleTurn()}
-                className={`py-2 px-3 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                onClick={() => {
+                  if (turn === 'b') toggleTurn();
+                  sfx.playMove();
+                }}
+                className={`pixel-btn py-2 px-3 text-xs font-pixel-sm cursor-pointer ${
                   turn === 'w'
-                    ? 'border-[#81b64c] bg-[#81b64c] text-white shadow-sm'
-                    : 'border-[#302e2b] bg-[#211f1c] text-zinc-400 hover:text-white'
+                    ? 'bg-[#81b64c] text-black font-bold border-[#81b64c]'
+                    : 'bg-[#211f1c] text-zinc-400 hover:text-white border-[#302e2b]'
                 }`}
               >
-                Белые ходят
+                БЕЛЫЕ ХОДЯТ
               </button>
               <button
                 type="button"
-                onClick={() => turn === 'w' && toggleTurn()}
-                className={`py-2 px-3 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                onClick={() => {
+                  if (turn === 'w') toggleTurn();
+                  sfx.playMove();
+                }}
+                className={`pixel-btn py-2 px-3 text-xs font-pixel-sm cursor-pointer ${
                   turn === 'b'
-                    ? 'border-[#81b64c] bg-[#81b64c] text-white shadow-sm'
-                    : 'border-[#302e2b] bg-[#211f1c] text-zinc-400 hover:text-white'
+                    ? 'bg-[#81b64c] text-black font-bold border-[#81b64c]'
+                    : 'bg-[#211f1c] text-zinc-400 hover:text-white border-[#302e2b]'
                 }`}
               >
-                Чёрные ходят
+                ЧЁРНЫЕ ХОДЯТ
               </button>
             </div>
           </div>
 
           {/* Castling rights */}
-          <div className="rounded-2xl border border-[#302e2b] bg-[#161512] p-4 flex flex-col gap-2.5">
-            <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">
-              Права на рокировку
+          <div className="pixel-card bg-[#181612] p-4 flex flex-col gap-2.5">
+            <span className="text-[10px] font-pixel-sm text-zinc-400 uppercase tracking-wider">
+              ПРАВА НА РОКИРОВКУ
             </span>
             <div className="grid grid-cols-2 gap-2 text-xs">
               <label className="flex items-center gap-2 text-zinc-300 cursor-pointer">
@@ -286,25 +333,25 @@ export function BoardEditor({ initialFen, onAnalyzePosition }: BoardEditorProps)
           </div>
 
           {/* FEN Box */}
-          <div className="rounded-2xl border border-[#302e2b] bg-[#161512] p-4 flex flex-col gap-2">
+          <div className="pixel-card bg-[#181612] p-4 flex flex-col gap-2">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">
-                FEN Позиции
+              <span className="text-[10px] font-pixel-sm text-zinc-400 uppercase tracking-wider">
+                FEN ПОЗИЦИИ
               </span>
               <button
                 type="button"
                 onClick={handleCopy}
-                className="text-xs text-[#81b64c] hover:underline flex items-center gap-1 cursor-pointer"
+                className="text-xs text-[#81b64c] hover:underline flex items-center gap-1 cursor-pointer font-pixel-sm"
               >
                 {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-                <span>{copied ? 'Скопировано!' : 'Копировать'}</span>
+                <span>{copied ? 'СКОПИРОВАНО!' : 'КОПИРОВАТЬ'}</span>
               </button>
             </div>
             <input
               type="text"
               value={fen}
               onChange={(e) => loadFen(e.target.value)}
-              className={`w-full bg-[#211f1c] border rounded-xl px-3 py-2 text-xs font-mono text-white outline-none ${
+              className={`w-full bg-[#14120e] border px-3 py-2 text-xs font-mono text-white outline-none ${
                 isValid ? 'border-[#302e2b] focus:border-[#81b64c]' : 'border-red-500'
               }`}
             />
@@ -314,11 +361,14 @@ export function BoardEditor({ initialFen, onAnalyzePosition }: BoardEditorProps)
           {onAnalyzePosition && (
             <button
               type="button"
-              onClick={() => onAnalyzePosition(fen)}
-              className="flex items-center justify-center gap-2 py-3 px-6 rounded-2xl bg-[#81b64c] hover:bg-[#74a643] text-white font-bold text-sm shadow-lg shadow-[#81b64c]/20 transition-all cursor-pointer active:scale-[0.98]"
+              onClick={() => {
+                sfx.playSuccess();
+                onAnalyzePosition(fen);
+              }}
+              className="pixel-btn flex items-center justify-center gap-2 py-3 px-6 bg-[#81b64c] hover:bg-[#74a643] text-black font-pixel text-xs cursor-pointer"
             >
-              <Play className="w-4 h-4 fill-current" />
-              <span>Анализировать позицию в Stockfish 19 Lite</span>
+              <Compass className="w-4 h-4" />
+              <span>АНАЛИЗИРОВАТЬ В STOCKFISH ▶</span>
             </button>
           )}
         </div>

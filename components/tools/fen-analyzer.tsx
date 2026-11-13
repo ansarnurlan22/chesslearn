@@ -1,7 +1,8 @@
 'use client';
 
+import { sfx } from '@/lib/sound-effects';
+import { AlertCircle, Loader2, Zap } from 'lucide-react';
 import { useState } from 'react';
-import { Loader2, Zap, AlertCircle } from 'lucide-react';
 
 const STARTING_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 
@@ -26,6 +27,7 @@ export function FenAnalyzer() {
   const [error, setError] = useState<string | null>(null);
 
   const analyze = async () => {
+    sfx.playMove();
     setLoading(true);
     setResult(null);
     setError(null);
@@ -49,6 +51,7 @@ export function FenAnalyzer() {
         depth?: number;
       };
 
+      sfx.playSuccess();
       setResult({
         eval: data.eval !== undefined ? String(data.eval) : '0.0',
         bestMove: (data.bestMove as string | undefined) || '—',
@@ -56,6 +59,7 @@ export function FenAnalyzer() {
         depth: (data.depth as number | undefined) || 0,
       });
     } catch (e) {
+      sfx.playError();
       setError(e instanceof Error ? e.message : 'Произошла ошибка');
     } finally {
       setLoading(false);
@@ -72,12 +76,12 @@ export function FenAnalyzer() {
   return (
     <div className="flex flex-col gap-5">
       <div className="flex flex-col gap-2">
-        <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">FEN-строка позиции</label>
+        <label className="font-pixel-sm text-[10px] text-zinc-300 uppercase tracking-wider">FEN-СТРОКА ПОЗИЦИИ</label>
         <textarea
           value={fen}
           onChange={e => setFen(e.target.value)}
           rows={3}
-          className="w-full bg-[#161512] border border-[#302e2b] rounded-lg px-3 py-2.5 text-white text-sm font-mono focus:outline-none focus:border-[#a855f7]/60 focus:ring-1 focus:ring-[#a855f7]/30 transition-all resize-none placeholder:text-zinc-600"
+          className="w-full bg-[#161512] border-2 border-zinc-700/80 rounded-none px-3 py-2.5 text-white text-xs font-mono focus:outline-none focus:border-[#81b64c] transition-all resize-none shadow-inner"
           placeholder="Вставьте FEN..."
           spellCheck={false}
         />
@@ -85,14 +89,19 @@ export function FenAnalyzer() {
 
       {/* Example FENs */}
       <div className="flex flex-col gap-2">
-        <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Примеры</label>
+        <label className="font-pixel-sm text-[9px] text-zinc-500 uppercase tracking-wider">ПРИМЕРЫ</label>
         <div className="flex flex-wrap gap-2">
           {EXAMPLE_FENS.map(ex => (
             <button
               key={ex.label}
               type="button"
-              onClick={() => { setFen(ex.fen); setResult(null); setError(null); }}
-              className="px-3 py-1.5 rounded-lg border border-[#302e2b] bg-[#161512] hover:bg-[#211f1c] text-zinc-400 hover:text-white text-xs font-medium transition-all cursor-pointer"
+              onClick={() => {
+                sfx.playMove();
+                setFen(ex.fen);
+                setResult(null);
+                setError(null);
+              }}
+              className="pixel-btn text-[9px] px-2.5 py-1.5 cursor-pointer text-zinc-300 hover:text-white"
             >
               {ex.label}
             </button>
@@ -104,38 +113,38 @@ export function FenAnalyzer() {
         type="button"
         onClick={analyze}
         disabled={loading || !fen.trim()}
-        className="flex items-center justify-center gap-2 py-3 rounded-xl border border-[#a855f7]/40 bg-[#a855f7]/15 hover:bg-[#a855f7]/25 text-[#a855f7] font-semibold transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+        className="pixel-btn text-xs py-3 flex items-center justify-center gap-2 cursor-pointer bg-[#81b64c]/20 border-[#81b64c] text-white hover:bg-[#81b64c]/30 disabled:opacity-40"
       >
-        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
-        {loading ? 'Анализирую...' : 'Анализировать позицию'}
+        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4 text-amber-400" />}
+        <span>{loading ? 'АНАЛИЗИРУЮ...' : 'АНАЛИЗИРОВАТЬ [ STOCKFISH ]'}</span>
       </button>
 
       {error && (
-        <div className="flex items-start gap-3 p-4 rounded-xl border border-red-500/40 bg-red-500/10">
-          <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
-          <span className="text-red-400 text-sm">{error}</span>
+        <div className="pixel-card p-4 border-red-500/60 bg-red-950/30 flex items-start gap-3">
+          <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+          <span className="text-red-400 text-xs font-mono">{error}</span>
         </div>
       )}
 
       {result && (
-        <div className="border border-[#302e2b] rounded-xl bg-[#161512] p-5 flex flex-col gap-4">
-          <div className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Результат анализа</div>
+        <div className="pixel-card p-5 flex flex-col gap-4">
+          <div className="font-pixel-sm text-[10px] text-zinc-400 uppercase tracking-wider">РЕЗУЛЬТАТ АНАЛИЗА</div>
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-1">
-              <span className="text-xs text-zinc-500">Оценка Stockfish 19 Lite</span>
-              <span className={`text-3xl font-bold font-mono ${evalColor}`}>
+              <span className="font-pixel-sm text-[9px] text-zinc-500">STOCKFISH 19 LITE</span>
+              <span className={`font-pixel-sm text-xl ${evalColor}`}>
                 {evalNum !== null && evalNum > 0 ? '+' : ''}{result.eval}
               </span>
-              <span className="text-xs text-zinc-600">глубина {result.depth}</span>
+              <span className="text-[10px] text-zinc-500 font-mono">глубина {result.depth}</span>
             </div>
             <div className="flex flex-col gap-1">
-              <span className="text-xs text-zinc-500">Лучший ход</span>
-              <span className="text-2xl font-bold text-white font-mono">{result.bestMove}</span>
+              <span className="font-pixel-sm text-[9px] text-zinc-500">ЛУЧШИЙ ХОД</span>
+              <span className="font-pixel-sm text-xl text-white font-mono">{result.bestMove}</span>
             </div>
           </div>
           {result.line && (
-            <div className="pt-3 border-t border-[#302e2b]">
-              <div className="text-xs text-zinc-500 mb-2">Вариант</div>
+            <div className="pt-3 border-t-2 border-zinc-800">
+              <div className="font-pixel-sm text-[9px] text-zinc-500 mb-2">ВАРИАНТ</div>
               <div className="text-xs font-mono text-zinc-300 leading-relaxed break-words">{result.line}</div>
             </div>
           )}

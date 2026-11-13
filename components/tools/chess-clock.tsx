@@ -1,5 +1,6 @@
 'use client';
 
+import { sfx } from '@/lib/sound-effects';
 import {
   Flag,
   Maximize2,
@@ -58,24 +59,10 @@ export function ChessClock() {
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Play a simple Web Audio API tick
+  // Play sound effect
   const playClickSound = useCallback(() => {
     if (!soundEnabled) return;
-    try {
-      const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(440, ctx.currentTime);
-      gain.gain.setValueAtTime(0.1, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.08);
-    } catch {
-      // ignore
-    }
+    sfx.playMove();
   }, [soundEnabled]);
 
   const reset = useCallback(
@@ -193,11 +180,12 @@ export function ChessClock() {
               onClick={() => {
                 setPreset(p);
                 reset(p);
+                sfx.playMove();
               }}
-              className={`px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all cursor-pointer ${
+              className={`pixel-btn px-3 py-1.5 text-xs font-pixel-sm cursor-pointer ${
                 preset.label === p.label
-                  ? 'bg-[#81b64c] border-[#81b64c] text-white shadow-sm'
-                  : 'border-[#302e2b] bg-[#211f1c] text-zinc-400 hover:text-white'
+                  ? 'bg-amber-500 text-black font-bold border-amber-600'
+                  : 'bg-[#211f1c] text-zinc-400 hover:text-white border-[#302e2b]'
               }`}
             >
               {p.label}
@@ -207,30 +195,30 @@ export function ChessClock() {
       </div>
 
       {/* Split Face-to-Face Clock Display */}
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-4">
         {/* Top Clock (Black - Inverted for opponent sitting across the table) */}
         <button
           type="button"
           onClick={() => active === 'black' && switchClock('black')}
-          className={`w-full py-12 px-6 rounded-3xl border flex flex-col items-center justify-center transition-all cursor-pointer rotate-180 ${
+          className={`w-full py-10 px-6 border-4 flex flex-col items-center justify-center transition-all cursor-pointer rotate-180 ${
             gameOver === 'black'
-              ? 'border-red-500/50 bg-red-500/10'
+              ? 'border-red-500 bg-red-950/40 shadow-[6px_6px_0px_0px_#7f1d1d]'
               : active === 'black'
-              ? 'border-[#81b64c] bg-[#81b64c]/15 shadow-2xl shadow-[#81b64c]/20'
-              : 'border-[#302e2b] bg-[#161512] opacity-75'
+              ? 'border-[#81b64c] bg-[#1e2d14] shadow-[6px_6px_0px_0px_#274013]'
+              : 'border-[#302e2b] bg-[#161512] shadow-[4px_4px_0px_0px_#0c0b09] opacity-80'
           }`}
         >
           <div className="flex items-center justify-between w-full max-w-sm px-4 mb-2">
-            <span className="text-xs font-bold uppercase tracking-widest text-zinc-400">
-              Чёрные
+            <span className="text-xs font-pixel text-zinc-400">
+              ЧЁРНЫЕ
             </span>
             <span className="text-xs font-mono text-zinc-500">
-              Ходов: {blackMoves}
+              ХОДОВ: {blackMoves}
             </span>
           </div>
 
           <div
-            className={`text-6xl sm:text-7xl font-mono font-black tabular-nums ${
+            className={`text-5xl sm:text-6xl font-pixel tabular-nums ${
               blackTime <= 10 && active === 'black'
                 ? 'text-red-400 animate-pulse'
                 : 'text-white'
@@ -238,15 +226,12 @@ export function ChessClock() {
           >
             {formatTime(blackTime)}
           </div>
-          {active === 'black' && (
-            <div className="mt-3 w-3 h-3 rounded-full bg-[#81b64c] animate-pulse" />
-          )}
         </button>
 
         {/* Center Control Strip */}
-        <div className="flex items-center justify-between px-4 py-2 rounded-2xl bg-[#211f1c] border border-[#302e2b] text-xs font-semibold">
+        <div className="pixel-card bg-[#181612] flex items-center justify-between px-4 py-2 text-xs font-pixel-sm">
           <span className="text-zinc-400">
-            {preset.label} (+{preset.inc}с инкремент)
+            {preset.label} (+{preset.inc}с)
           </span>
 
           <div className="flex items-center gap-3">
@@ -254,18 +239,21 @@ export function ChessClock() {
               type="button"
               onClick={togglePause}
               disabled={!!gameOver}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#81b64c] text-white font-bold cursor-pointer disabled:opacity-40"
+              className="pixel-btn flex items-center gap-1.5 px-3 py-1.5 bg-[#81b64c] text-black font-bold cursor-pointer disabled:opacity-40"
             >
               {active !== null ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
-              <span>{active !== null ? 'Пауза' : 'Старт'}</span>
+              <span>{active !== null ? 'ПАУЗА' : 'СТАРТ'}</span>
             </button>
             <button
               type="button"
-              onClick={() => reset()}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#302e2b] hover:bg-[#161512] text-zinc-400 hover:text-white cursor-pointer"
+              onClick={() => {
+                reset();
+                sfx.playMove();
+              }}
+              className="pixel-btn flex items-center gap-1.5 px-3 py-1.5 bg-[#211f1c] text-zinc-400 hover:text-white cursor-pointer"
             >
               <RotateCcw className="w-3.5 h-3.5" />
-              <span>Сброс</span>
+              <span>СБРОС</span>
             </button>
           </div>
         </div>
@@ -278,12 +266,12 @@ export function ChessClock() {
               ? switchClock('white')
               : active === null && switchClock('white')
           }
-          className={`w-full py-12 px-6 rounded-3xl border flex flex-col items-center justify-center transition-all cursor-pointer ${
+          className={`w-full py-10 px-6 border-4 flex flex-col items-center justify-center transition-all cursor-pointer ${
             gameOver === 'white'
-              ? 'border-red-500/50 bg-red-500/10'
+              ? 'border-red-500 bg-red-950/40 shadow-[6px_6px_0px_0px_#7f1d1d]'
               : active === 'white'
-              ? 'border-amber-400 bg-amber-400/15 shadow-2xl shadow-amber-400/20'
-              : 'border-[#302e2b] bg-[#211f1c] opacity-75'
+              ? 'border-amber-400 bg-[#2d2414] shadow-[6px_6px_0px_0px_#78350f]'
+              : 'border-[#302e2b] bg-[#161512] shadow-[4px_4px_0px_0px_#0c0b09] opacity-80'
           }`}
         >
           <div className="flex items-center justify-between w-full max-w-sm px-4 mb-2">

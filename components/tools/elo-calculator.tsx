@@ -1,5 +1,6 @@
 'use client';
 
+import { sfx } from '@/lib/sound-effects';
 import {
   Award,
   Calculator,
@@ -96,49 +97,55 @@ export function EloCalculator() {
   };
 
   return (
-    <div className="flex flex-col gap-6 w-full">
+    <div className="flex flex-col gap-6 w-full font-sans">
       {/* Tab Switcher: Single game vs FIDE Tournament */}
-      <div className="flex p-1 rounded-2xl bg-[#161512] border border-[#302e2b] self-start">
+      <div className="flex gap-2">
         <button
           type="button"
-          onClick={() => setTab('single')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+          onClick={() => {
+            setTab('single');
+            sfx.playMove();
+          }}
+          className={`pixel-btn px-4 py-2 text-xs font-pixel-sm cursor-pointer ${
             tab === 'single'
-              ? 'bg-[#81b64c] text-white shadow-sm'
-              : 'text-zinc-400 hover:text-white'
+              ? 'bg-[#81b64c] text-black font-bold border-[#81b64c]'
+              : 'bg-[#211f1c] text-zinc-400 hover:text-white border-[#302e2b]'
           }`}
         >
-          Одна партия
+          ОДНА ПАРТИЯ
         </button>
         <button
           type="button"
-          onClick={() => setTab('fideTournament')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+          onClick={() => {
+            setTab('fideTournament');
+            sfx.playMove();
+          }}
+          className={`pixel-btn px-4 py-2 text-xs font-pixel-sm cursor-pointer ${
             tab === 'fideTournament'
-              ? 'bg-[#81b64c] text-white shadow-sm'
-              : 'text-zinc-400 hover:text-white'
+              ? 'bg-[#81b64c] text-black font-bold border-[#81b64c]'
+              : 'bg-[#211f1c] text-zinc-400 hover:text-white border-[#302e2b]'
           }`}
         >
-          FIDE Турнир (много партий)
+          FIDE ТУРНИР (МНОГО ПАРТИЙ)
         </button>
       </div>
 
       {tab === 'single' ? (
         <>
           {/* Win Probability Header */}
-          <div className="rounded-2xl border border-[#302e2b] bg-[#161512] p-5 flex flex-col gap-3">
-            <div className="flex items-center justify-between text-xs font-semibold">
-              <span className="text-zinc-400">Вероятность победы</span>
+          <div className="pixel-card bg-[#181612] p-5 flex flex-col gap-3">
+            <div className="flex items-center justify-between text-xs font-pixel-sm">
+              <span className="text-zinc-400">ВЕРОЯТНОСТЬ ПОБЕДЫ</span>
               <span className="text-amber-400 uppercase tracking-wider">{matchLabel}</span>
             </div>
 
-            <div className="flex items-center justify-between text-2xl font-black font-mono">
-              <span className="text-emerald-400">{myProb}% Вы</span>
-              <span className="text-zinc-400">{oppProb}% Соперник</span>
+            <div className="flex items-center justify-between text-xl font-pixel">
+              <span className="text-emerald-400">{myProb}% ВЫ</span>
+              <span className="text-zinc-400">{oppProb}% СОПЕРНИК</span>
             </div>
 
             {/* Split probability bar */}
-            <div className="w-full h-3 rounded-full overflow-hidden flex bg-zinc-800">
+            <div className="w-full h-4 border-2 border-[#2b2721] overflow-hidden flex bg-zinc-800">
               <div
                 className="bg-emerald-500 transition-all duration-300"
                 style={{ width: `${myProb}%` }}
@@ -153,15 +160,18 @@ export function EloCalculator() {
           {/* Rating Inputs */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* My rating */}
-            <div className="rounded-2xl border border-[#302e2b] bg-[#161512] p-4 flex flex-col gap-3">
-              <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">
-                Ваш текущий рейтинг
+            <div className="pixel-card bg-[#181612] p-4 flex flex-col gap-3">
+              <label className="text-[10px] font-pixel-sm text-zinc-400 uppercase tracking-wider">
+                ВАШ ТЕКУЩИЙ РЕЙТИНГ
               </label>
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => setMyRating((r) => Math.max(100, r - 50))}
-                  className="w-9 h-9 rounded-xl border border-[#302e2b] bg-[#211f1c] hover:bg-[#262421] text-white font-bold text-xs flex items-center justify-center cursor-pointer"
+                  onClick={() => {
+                    setMyRating((r) => Math.max(100, r - 50));
+                    sfx.playMove();
+                  }}
+                  className="pixel-btn w-10 h-10 bg-[#211f1c] text-white font-mono font-bold text-xs flex items-center justify-center cursor-pointer border-[#302e2b]"
                 >
                   −50
                 </button>
@@ -169,12 +179,15 @@ export function EloCalculator() {
                   type="number"
                   value={myRating}
                   onChange={(e) => setMyRating(Number(e.target.value))}
-                  className="flex-1 bg-[#211f1c] border border-[#302e2b] rounded-xl px-3 py-2 text-center text-white font-mono font-bold text-lg outline-none focus:border-[#81b64c]"
+                  className="flex-1 bg-[#14120e] border-2 border-[#302e2b] px-3 py-2 text-center text-white font-pixel text-base outline-none focus:border-[#81b64c]"
                 />
                 <button
                   type="button"
-                  onClick={() => setMyRating((r) => Math.min(3200, r + 50))}
-                  className="w-9 h-9 rounded-xl border border-[#302e2b] bg-[#211f1c] hover:bg-[#262421] text-white font-bold text-xs flex items-center justify-center cursor-pointer"
+                  onClick={() => {
+                    setMyRating((r) => Math.min(3200, r + 50));
+                    sfx.playMove();
+                  }}
+                  className="pixel-btn w-10 h-10 bg-[#211f1c] text-white font-mono font-bold text-xs flex items-center justify-center cursor-pointer border-[#302e2b]"
                 >
                   +50
                 </button>
@@ -191,15 +204,18 @@ export function EloCalculator() {
             </div>
 
             {/* Opponent rating */}
-            <div className="rounded-2xl border border-[#302e2b] bg-[#161512] p-4 flex flex-col gap-3">
-              <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">
-                Рейтинг соперника
+            <div className="pixel-card bg-[#181612] p-4 flex flex-col gap-3">
+              <label className="text-[10px] font-pixel-sm text-zinc-400 uppercase tracking-wider">
+                РЕЙТИНГ СОПЕРНИКА
               </label>
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => setOppRating((r) => Math.max(100, r - 50))}
-                  className="w-9 h-9 rounded-xl border border-[#302e2b] bg-[#211f1c] hover:bg-[#262421] text-white font-bold text-xs flex items-center justify-center cursor-pointer"
+                  onClick={() => {
+                    setOppRating((r) => Math.max(100, r - 50));
+                    sfx.playMove();
+                  }}
+                  className="pixel-btn w-10 h-10 bg-[#211f1c] text-white font-mono font-bold text-xs flex items-center justify-center cursor-pointer border-[#302e2b]"
                 >
                   −50
                 </button>
@@ -207,12 +223,15 @@ export function EloCalculator() {
                   type="number"
                   value={oppRating}
                   onChange={(e) => setOppRating(Number(e.target.value))}
-                  className="flex-1 bg-[#211f1c] border border-[#302e2b] rounded-xl px-3 py-2 text-center text-white font-mono font-bold text-lg outline-none focus:border-[#81b64c]"
+                  className="flex-1 bg-[#14120e] border-2 border-[#302e2b] px-3 py-2 text-center text-white font-pixel text-base outline-none focus:border-[#81b64c]"
                 />
                 <button
                   type="button"
-                  onClick={() => setOppRating((r) => Math.min(3200, r + 50))}
-                  className="w-9 h-9 rounded-xl border border-[#302e2b] bg-[#211f1c] hover:bg-[#262421] text-white font-bold text-xs flex items-center justify-center cursor-pointer"
+                  onClick={() => {
+                    setOppRating((r) => Math.min(3200, r + 50));
+                    sfx.playMove();
+                  }}
+                  className="pixel-btn w-10 h-10 bg-[#211f1c] text-white font-mono font-bold text-xs flex items-center justify-center cursor-pointer border-[#302e2b]"
                 >
                   +50
                 </button>
@@ -231,40 +250,47 @@ export function EloCalculator() {
 
           {/* Result Selector */}
           <div className="flex flex-col gap-2">
-            <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">
-              Исход партии
+            <span className="text-[10px] font-pixel-sm text-zinc-400 uppercase tracking-wider">
+              ИСХОД ПАРТИИ
             </span>
             <div className="grid grid-cols-3 gap-3">
               {(
                 [
-                  { val: 'win', label: 'Победа', diff: calcElo(myRating, oppRating, 'win', kFactor).delta },
-                  { val: 'draw', label: 'Ничья', diff: calcElo(myRating, oppRating, 'draw', kFactor).delta },
-                  { val: 'loss', label: 'Поражение', diff: calcElo(myRating, oppRating, 'loss', kFactor).delta },
+                  { val: 'win', label: 'ПОБЕДА', diff: calcElo(myRating, oppRating, 'win', kFactor).delta },
+                  { val: 'draw', label: 'НИЧЬЯ', diff: calcElo(myRating, oppRating, 'draw', kFactor).delta },
+                  { val: 'loss', label: 'ПОРАЖЕНИЕ', diff: calcElo(myRating, oppRating, 'loss', kFactor).delta },
                 ] as const
               ).map((btn) => (
                 <button
                   key={btn.val}
                   type="button"
-                  onClick={() => setResult(btn.val)}
-                  className={`p-4 rounded-2xl border flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${
+                  onClick={() => {
+                    setResult(btn.val);
+                    if (btn.val === 'win') sfx.playSuccess();
+                    else if (btn.val === 'loss') sfx.playError();
+                    else sfx.playMove();
+                  }}
+                  className={`pixel-btn p-4 flex flex-col items-center justify-center gap-1.5 cursor-pointer ${
                     result === btn.val
-                      ? 'border-[#81b64c] bg-[#81b64c]/15 shadow-md'
-                      : 'border-[#302e2b] bg-[#161512] hover:bg-[#211f1c]'
+                      ? 'bg-[#81b64c] text-black font-bold border-[#81b64c]'
+                      : 'bg-[#181612] hover:bg-[#211f1c] border-[#302e2b]'
                   }`}
                 >
-                  <span className={`text-sm font-bold ${result === btn.val ? 'text-white' : 'text-zinc-300'}`}>
+                  <span className="text-xs font-pixel">
                     {btn.label}
                   </span>
                   <span
                     className={`text-xs font-mono font-bold ${
-                      btn.diff > 0
+                      result === btn.val
+                        ? 'text-black font-black'
+                        : btn.diff > 0
                         ? 'text-emerald-400'
                         : btn.diff < 0
                         ? 'text-rose-400'
                         : 'text-zinc-500'
                     }`}
                   >
-                    {btn.diff > 0 ? `+${btn.diff}` : btn.diff} очков
+                    {btn.diff > 0 ? `+${btn.diff}` : btn.diff} PTS
                   </span>
                 </button>
               ))}
@@ -272,25 +298,25 @@ export function EloCalculator() {
           </div>
 
           {/* New Rating Result Card */}
-          <div className="rounded-3xl border border-[#302e2b] bg-[#161512] p-6 flex flex-col sm:flex-row items-center justify-between gap-6 shadow-xl">
+          <div className="pixel-card bg-[#181612] p-6 flex flex-col sm:flex-row items-center justify-between gap-6 shadow-xl">
             <div className="flex flex-col gap-1">
-              <span className="text-xs text-zinc-500 font-semibold uppercase tracking-wider">
-                Новый расчётный рейтинг
+              <span className="text-[10px] font-pixel-sm text-zinc-500 uppercase tracking-wider">
+                НОВЫЙ РАСЧЁТНЫЙ РЕЙТИНГ
               </span>
               <div className="flex items-baseline gap-3">
-                <span className="text-4xl font-mono font-black text-white">{calc.newRating}</span>
-                <span className="text-sm font-mono text-zinc-500">
+                <span className="text-3xl sm:text-4xl font-pixel text-white">{calc.newRating}</span>
+                <span className="text-xs font-mono text-zinc-500">
                   ({myRating} → {calc.newRating})
                 </span>
               </div>
             </div>
 
             <div
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl border font-bold text-sm ${
+              className={`pixel-badge flex items-center gap-2 px-4 py-2 font-pixel text-xs ${
                 calc.delta > 0
-                  ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400'
+                  ? 'border-emerald-500 bg-emerald-500/20 text-emerald-400'
                   : calc.delta < 0
-                  ? 'border-rose-500/30 bg-rose-500/10 text-rose-400'
+                  ? 'border-rose-500 bg-rose-500/20 text-rose-400'
                   : 'border-zinc-700 bg-zinc-800 text-zinc-300'
               }`}
             >
@@ -301,7 +327,7 @@ export function EloCalculator() {
               ) : (
                 <Minus className="w-4 h-4" />
               )}
-              <span>{calc.delta > 0 ? `+${calc.delta}` : calc.delta} очков рейтинга</span>
+              <span>{calc.delta > 0 ? `+${calc.delta}` : calc.delta} PTS</span>
             </div>
           </div>
 

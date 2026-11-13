@@ -19,6 +19,7 @@ import { RoundRobinGenerator } from '@/components/tools/round-robin-generator';
 import { useAuth } from '@/hooks/use-auth';
 import type { ChessPlatform, UnifiedGame, UnifiedPlayerProfile } from '@/lib/api/types';
 import { CLASSIFICATION_META } from '@/lib/chess-classifier';
+import { sfx } from '@/lib/sound-effects';
 import type { GameReviewData, MoveAnalysis } from '@/types/review';
 import {
   AlertCircle,
@@ -1482,19 +1483,8 @@ export function ChessDashboard({
 
         {/* Tab: Openings */}
         {activeTab === 'openings' && (
-          <main className="flex-1 w-full max-w-4xl mx-auto px-4 sm:px-6 py-8">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400">
-                <BookOpen className="w-5 h-5" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-black text-white">Дебютный справочник</h1>
-                <p className="text-xs text-zinc-500">Поиск дебютов по ECO-кодам, названиям и вариантам ходов</p>
-              </div>
-            </div>
-            <div className="border border-[#302e2b] rounded-2xl bg-[#211f1c] p-6 shadow-md">
-              <OpeningExplorer />
-            </div>
+          <main className="flex-1 w-full max-w-6xl mx-auto px-4 sm:px-6 py-8">
+            <OpeningExplorer onAnalyzePosition={handleAnalyzePosition} />
           </main>
         )}
 
