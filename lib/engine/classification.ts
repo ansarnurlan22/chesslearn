@@ -408,7 +408,7 @@ export async function classifyGameWithEngine(
         comment = `Блестящая жертва материала! Позиция остаётся строго в вашу пользу (${scoreStr}), создавая решающее преимущество.`;
         break;
       case 'best':
-        comment = 'Сильнейший ход по первой линии Stockfish 19 Lite. Максимально точное позиционное решение.';
+        comment = 'Сильнейший ход по первой линии Stockfish. Максимально точное позиционное решение.';
         break;
       case 'great':
         comment = `Отличный ход! Потеря всего ${cpl} cp. Фигуры сохраняют высокую активность и гармонию.`;
@@ -417,7 +417,7 @@ export async function classifyGameWithEngine(
         comment = `Надёжный ход (потеря ${cpl} cp). Позиция остаётся в пределах равенства и контроля.`;
         break;
       case 'inaccuracy':
-        comment = `Неточность (потеря ${cpl} cp). Сильнее было сыграть ${betterMove || 'иначе'}. Линия Stockfish 19 Lite: ${pvStr || betterMove || 'активное развитие'}.`;
+        comment = `Неточность (потеря ${cpl} cp). Сильнее было сыграть ${betterMove || 'иначе'}. Линия Stockfish: ${pvStr || betterMove || 'активное развитие'}.`;
         break;
       case 'mistake':
         comment = `Ощутимая ошибка (потеря ${cpl} cp). Точнее было ${betterMove || 'иначе'}. Соперник получает возможность навязать контригру.`;

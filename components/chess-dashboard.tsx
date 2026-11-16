@@ -4,7 +4,12 @@ import { ChessChat, type ActiveMoveContext } from '@/components/chess-chat';
 import { ChessViewer } from '@/components/chess-viewer';
 import { GameReview } from '@/components/game-review';
 import { Logo } from '@/components/logo';
+import { HowItWorksAndFaq } from '@/components/landing-faq';
+import { PixelCheeseIcon } from '@/components/pixel-loader';
 import { StudentProfileModal } from '@/components/student-profile-modal';
+import { FEATURED_PLAYERS } from '@/lib/config/featured-players';
+import { SAMPLE_PROFILE } from '@/lib/config/sample-game';
+import { getCheeseRank } from '@/lib/config/cheese-ranks';
 import { AnalysisBoard } from '@/components/tools/analysis-board';
 import { BoardEditor } from '@/components/tools/board-editor';
 import { BoardSetupDrill } from '@/components/tools/board-setup-drill';
@@ -140,7 +145,7 @@ export const TRAIN_ITEMS: TrainItem[] = [
   },
   {
     id: 'trainBrain',
-    label: 'Brain Gym (Фитнес мозга)',
+    label: 'Фитнес мозга',
     shortDesc: 'Square Rush, 8 Ферзей и игра вслепую',
     icon: Brain,
     badge: 'Спринт',
@@ -163,7 +168,7 @@ export const TOOLS_ITEMS: ToolItem[] = [
     label: 'Доска анализа',
     shortDesc: 'Интерактивный анализ ходов, мульти-PV и стрелки',
     icon: Compass,
-    badge: 'Engine',
+    badge: 'Движок',
     category: 'Анализ',
   },
   {
@@ -208,7 +213,7 @@ export const TOOLS_ITEMS: ToolItem[] = [
   {
     id: 'clock',
     label: 'Шахматные часы',
-    shortDesc: 'Часы с контролем Bullet/Blitz и переворотом экрана',
+    shortDesc: 'Часы с контролем Пуля/Блиц и переворотом экрана',
     icon: Clock,
     badge: 'Звук',
     category: 'Утилиты',
@@ -236,11 +241,6 @@ export interface ChessDashboardProps {
   profile: UnifiedPlayerProfile | null;
   error?: string | null;
 }
-
-const PLATFORM_CHIPS: Record<ChessPlatform, string[]> = {
-  lichess: ['MagnusCarlsen', 'Hikaru', 'DanielNaroditsky'],
-  chesscom: ['Hikaru', 'MagnusCarlsen', 'GothamChess', 'DanielNaroditsky'],
-};
 
 export function ChessDashboard({
   initialUsername = '',
@@ -340,7 +340,18 @@ export function ChessDashboard({
 
   const isChessCom = platform === 'chesscom';
 
-  const games: UnifiedGame[] = profile?.recentGames ?? [];
+  const [sampleProfile, setSampleProfile] = useState<UnifiedPlayerProfile | null>(null);
+  const activeProfile = profile ?? sampleProfile;
+
+  const handleLoadSample = () => {
+    setSampleProfile(SAMPLE_PROFILE);
+    setPlatform(SAMPLE_PROFILE.platform);
+    if (SAMPLE_PROFILE.recentGames.length > 0) {
+      setSelectedGameId(SAMPLE_PROFILE.recentGames[0].id);
+    }
+  };
+
+  const games: UnifiedGame[] = activeProfile?.recentGames ?? [];
   const [selectedGameId, setSelectedGameId] = useState<string | null>(
     games.length > 0 ? games[0].id : null,
   );
@@ -403,7 +414,7 @@ export function ChessDashboard({
   }, [initialUsername]);
 
   useEffect(() => {
-    const nextGames = profile?.recentGames ?? [];
+    const nextGames = activeProfile?.recentGames ?? [];
     if (nextGames.length > 0) {
       setSelectedGameId(nextGames[0].id);
     } else {
@@ -411,7 +422,7 @@ export function ChessDashboard({
     }
     setTargetStep(null);
     setRetryMove(null);
-  }, [profile?.username, profile?.platform]);
+  }, [activeProfile?.username, activeProfile?.platform]);
 
   // Reset targetStep, retry and loadedReview when game selection changes
   useEffect(() => {
@@ -438,6 +449,7 @@ export function ChessDashboard({
   const handleSearch = (targetName: string, targetPlatform: ChessPlatform = platform) => {
     const trimmed = targetName.trim();
     if (!trimmed) return;
+    setSampleProfile(null);
     startTransition(() => {
       router.push(`/?u=${encodeURIComponent(trimmed)}&p=${targetPlatform}`);
     });
@@ -463,10 +475,10 @@ export function ChessDashboard({
 
   // Winrate calculation
   const totalGamesCount =
-    profile ? profile.record.win + profile.record.loss + profile.record.draw : 0;
-  const wins = profile?.record.win ?? 0;
-  const losses = profile?.record.loss ?? 0;
-  const draws = profile?.record.draw ?? 0;
+    activeProfile ? activeProfile.record.win + activeProfile.record.loss + activeProfile.record.draw : 0;
+  const wins = activeProfile?.record.win ?? 0;
+  const losses = activeProfile?.record.loss ?? 0;
+  const draws = activeProfile?.record.draw ?? 0;
   const winRate =
     totalGamesCount > 0 ? Math.round((wins / totalGamesCount) * 100) : 0;
   const lossRate =
@@ -506,7 +518,7 @@ export function ChessDashboard({
           <button
             type="button"
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className="p-2 rounded-lg text-zinc-400 hover:text-white hover:bg-[#211f1c] transition-colors cursor-pointer"
+            className="min-w-[44px] min-h-[44px] flex items-center justify-center p-2.5 rounded-xl text-zinc-400 hover:text-white hover:bg-[#211f1c] transition-colors cursor-pointer touch-manipulation"
             aria-label="Меню"
           >
             {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -522,14 +534,14 @@ export function ChessDashboard({
               Навигация
             </div>
 
-            {/* 1. Обзор партий */}
+            {/* 1. Разбор партий */}
             <button
               type="button"
               onClick={() => {
                 setActiveTab('analysis');
                 setIsMobileMenuOpen(false);
               }}
-              className={`flex items-center justify-between px-3.5 py-3 rounded-xl font-medium text-sm transition-all text-left cursor-pointer ${
+              className={`flex items-center justify-between px-4 py-3.5 rounded-xl font-medium text-sm transition-all text-left cursor-pointer min-h-[48px] touch-manipulation ${
                 activeTab === 'analysis'
                   ? isChessCom
                     ? 'bg-[#81b64c]/15 text-[#81b64c] border border-[#81b64c]/30 font-semibold'
@@ -539,11 +551,8 @@ export function ChessDashboard({
             >
               <div className="flex items-center gap-3">
                 <Swords className="w-5 h-5" />
-                <span>Обзор партий</span>
+                <span>Разбор партий</span>
               </div>
-              <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#211f1c] text-zinc-400 border border-[#302e2b]">
-                Review
-              </span>
             </button>
 
             {/* 2. Тренировки (Аккордеон) */}
@@ -691,37 +700,6 @@ export function ChessDashboard({
                 </div>
               )}
             </div>
-
-            {/* Platform switcher in mobile menu */}
-            <div className="mt-4 pt-4 border-t border-[#302e2b]">
-              <div className="text-[10px] uppercase font-bold tracking-wider text-zinc-500 mb-2 px-2">
-                Платформа партий
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => onPlatformChange('lichess')}
-                  className={`py-2 px-3 rounded-xl border text-xs font-semibold cursor-pointer ${
-                    platform === 'lichess'
-                      ? 'bg-[#3692e7] border-[#3692e7] text-white'
-                      : 'border-[#302e2b] bg-[#211f1c] text-zinc-400'
-                  }`}
-                >
-                  Lichess
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onPlatformChange('chesscom')}
-                  className={`py-2 px-3 rounded-xl border text-xs font-semibold cursor-pointer ${
-                    platform === 'chesscom'
-                      ? 'bg-[#81b64c] border-[#81b64c] text-white'
-                      : 'border-[#302e2b] bg-[#211f1c] text-zinc-400'
-                  }`}
-                >
-                  Chess.com
-                </button>
-              </div>
-            </div>
           </div>
 
           <div className="pt-4 border-t border-[#302e2b] flex items-center justify-between text-xs text-zinc-500">
@@ -739,49 +717,17 @@ export function ChessDashboard({
           </a>
         </div>
 
-        {/* Platform Selector in Sidebar */}
-        <div className="p-3 border-b border-[#302e2b]">
-          <div className="text-[10px] uppercase font-bold tracking-wider text-zinc-500 mb-1.5 px-1 flex items-center justify-between">
-            <span>Платформа</span>
-            <span className="text-[10px] font-mono text-zinc-600">{platform}</span>
-          </div>
-          <div className="grid grid-cols-2 p-1 rounded-xl bg-[#211f1c] border border-[#302e2b]">
-            <button
-              type="button"
-              onClick={() => onPlatformChange('lichess')}
-              className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                platform === 'lichess'
-                  ? 'bg-[#3692e7] text-white shadow-sm font-bold'
-                  : 'text-zinc-400 hover:text-white'
-              }`}
-            >
-              <span>Lichess</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => onPlatformChange('chesscom')}
-              className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                platform === 'chesscom'
-                  ? 'bg-[#81b64c] text-white shadow-sm font-bold'
-                  : 'text-zinc-400 hover:text-white'
-              }`}
-            >
-              <span>Chess.com</span>
-            </button>
-          </div>
-        </div>
-
         {/* Nav Items List */}
         <div className="flex-1 p-3 space-y-1.5">
           <div className="text-[10px] uppercase font-bold tracking-wider text-zinc-500 mb-2 px-2">
             Навигация
           </div>
 
-          {/* 1. Обзор партий */}
+          {/* 1. Разбор партий */}
           <button
             type="button"
             onClick={() => setActiveTab('analysis')}
-            className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl font-medium text-xs transition-all cursor-pointer text-left ${
+            className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl font-medium text-xs transition-all cursor-pointer text-left min-h-[40px] ${
               activeTab === 'analysis'
                 ? isChessCom
                   ? 'bg-[#81b64c]/15 text-[#81b64c] border border-[#81b64c]/30 font-semibold shadow-sm'
@@ -799,11 +745,8 @@ export function ChessDashboard({
                     : 'text-zinc-500'
                 }`}
               />
-              <span>Обзор партий</span>
+              <span>Разбор партий</span>
             </div>
-            <span className="text-[9px] px-1.5 py-0.5 rounded bg-[#211f1c] text-zinc-400 border border-[#302e2b]">
-              Review
-            </span>
           </button>
 
           {/* 2. Единая кнопка "Тренировки" с выпадающим меню вариантов при наведении */}
@@ -1113,45 +1056,50 @@ export function ChessDashboard({
           {/* Hero Section */}
           <section className="flex flex-col items-center text-center max-w-3xl mx-auto px-4">
             {/* Main Title */}
-            <h1 className="text-4xl sm:text-6xl font-black tracking-tight text-white mb-4 leading-tight">
-              Бесплатный анализ{' '}
-              <span className={isChessCom ? 'text-[#81b64c]' : 'text-[#3692e7]'}>
-                каждый день
+            <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight text-white mb-4 leading-tight">
+              Разбор шахматных партий{' '}
+              <span className="text-amber-400">
+                без ограничений
               </span>
             </h1>
 
-            <p className={`text-base sm:text-lg max-w-xl mb-8 leading-relaxed ${isChessCom ? 'text-[#c3c2c1]' : 'text-[#bababa]'}`}>
-              Изучай статистику, просматривай партии и получай подробный анализ ходов с точностью и оценкой позиции.
+            <p className={`text-base sm:text-lg max-w-2xl mb-8 leading-relaxed ${isChessCom ? 'text-[#c3c2c1]' : 'text-[#bababa]'}`}>
+              Глубокий анализ на движке Stockfish: процентная точность, классификация ошибок и интерактивный график перевеса с Lichess и Chess.com без платных подписок и дневных лимитов.
             </p>
 
             {/* Matte Search & Platform Selector Card */}
-            <div className={`w-full max-w-xl ${isChessCom ? 'bg-[#211f1c] border-[#302e2b]' : 'bg-[#24221f] border-[#33312c]'} border p-3 sm:p-4 rounded-3xl shadow-sm flex flex-col gap-3`}>
-              {/* Platform Switcher Tabs */}
-              <div className={`grid grid-cols-2 p-1 rounded-2xl ${isChessCom ? 'bg-[#191815] border-[#302e2b]' : 'bg-[#1c1a17] border-[#33312c]'} border`}>
-                <button
-                  type="button"
-                  onClick={() => onPlatformChange('lichess')}
-                  className={`flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
-                    platform === 'lichess'
-                      ? 'bg-[#3692e7] text-white font-bold'
-                      : 'text-[#bababa] hover:text-white'
-                  }`}
-                >
-                  <Globe className="w-4 h-4 text-white" />
-                  <span>Lichess.org</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onPlatformChange('chesscom')}
-                  className={`flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
-                    platform === 'chesscom'
-                      ? 'bg-[#81b64c] text-white font-bold'
-                      : 'text-[#c3c2c1] hover:text-white'
-                  }`}
-                >
-                  <span className="w-2 h-2 rounded-full bg-white" />
-                  <span>Chess.com</span>
-                </button>
+            <div className={`w-full max-w-xl ${isChessCom ? 'bg-[#211f1c] border-[#302e2b]' : 'bg-[#24221f] border-[#33312c]'} border p-3.5 sm:p-5 rounded-3xl shadow-sm flex flex-col gap-3.5`}>
+              {/* Single Compact Platform Switcher */}
+              <div className="flex items-center justify-between px-1">
+                <span className="font-pixel text-[9px] text-amber-400/90 tracking-wider">
+                  ПЛАТФОРМА:
+                </span>
+                <div className={`inline-flex p-1 rounded-xl ${isChessCom ? 'bg-[#191815] border-[#302e2b]' : 'bg-[#1c1a17] border-[#33312c]'} border`}>
+                  <button
+                    type="button"
+                    onClick={() => onPlatformChange('lichess')}
+                    className={`flex items-center gap-1.5 py-1 px-3 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      platform === 'lichess'
+                        ? 'bg-[#3692e7] text-white shadow-sm'
+                        : 'text-zinc-400 hover:text-white'
+                    }`}
+                  >
+                    <Globe className="w-3.5 h-3.5" />
+                    <span>Lichess</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onPlatformChange('chesscom')}
+                    className={`flex items-center gap-1.5 py-1 px-3 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      platform === 'chesscom'
+                        ? 'bg-[#81b64c] text-white shadow-sm'
+                        : 'text-zinc-400 hover:text-white'
+                    }`}
+                  >
+                    <span className="w-2 h-2 rounded-full bg-white" />
+                    <span>Chess.com</span>
+                  </button>
+                </div>
               </div>
 
               {/* Search Form */}
@@ -1172,7 +1120,7 @@ export function ChessDashboard({
                   />
                   {isPending && (
                     <div className="absolute right-4 top-1/2 -translate-y-1/2">
-                      <Loader2 className={`w-5 h-5 ${isChessCom ? 'text-[#81b64c]' : 'text-[#3692e7]'} animate-spin`} />
+                      <div className="w-4 h-4 border-2 border-amber-400/30 border-t-amber-400 rounded-full animate-spin" />
                     </div>
                   )}
                 </div>
@@ -1186,37 +1134,57 @@ export function ChessDashboard({
                   } text-white font-bold text-sm sm:text-base px-6 py-3.5 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shrink-0 active:scale-[0.98] cursor-pointer touch-manipulation`}
                 >
                   {isPending ? (
-                    <Loader2 className="w-4 h-4 animate-spin text-white" />
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                   ) : (
                     <Search className="w-4 h-4 text-white stroke-[2.5]" />
                   )}
                   <span>Анализировать</span>
                 </button>
               </form>
+
+              {/* Action Button: Quick Demo Example */}
+              <div className="pt-2 border-t border-[#343029]/60 flex flex-col sm:flex-row items-center justify-between gap-2">
+                <button
+                  type="button"
+                  onClick={handleLoadSample}
+                  className="w-full sm:w-auto pixel-btn bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-zinc-950 font-bold text-xs sm:text-sm px-4 py-2.5 rounded-xl flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-95 shadow-md"
+                >
+                  <Sparkles className="w-4 h-4 text-zinc-950" />
+                  <span>Посмотреть пример разбора</span>
+                </button>
+                <span className="text-[11px] text-zinc-500">
+                  Шедевр Каспаров — Топалов без ввода ника
+                </span>
+              </div>
             </div>
 
-            {/* Quick select chip pills */}
+            {/* Quick select chip pills from config */}
             <div className={`flex flex-wrap items-center justify-center gap-2 mt-4 text-xs ${isChessCom ? 'text-[#8b8987]' : 'text-[#7e7b76]'} px-2`}>
-              <span className="w-full sm:w-auto text-center sm:text-left mb-0.5 sm:mb-0">
-                {platform === 'chesscom' ? 'Топ на Chess.com:' : 'Топ на Lichess:'}
+              <span className="w-full sm:w-auto text-center sm:text-left mb-0.5 sm:mb-0 font-pixel text-[9px] text-amber-400/90">
+                {platform === 'chesscom' ? 'ТОП CHESS.COM:' : 'ТОП LICHESS:'}
               </span>
               <div className="flex flex-wrap items-center justify-center gap-2">
-                {PLATFORM_CHIPS[platform].map((name) => (
+                {FEATURED_PLAYERS[platform].map((p) => (
                   <button
-                    key={name}
+                    key={p.username}
                     type="button"
                     onClick={() => {
-                      setUsernameInput(name);
-                      handleSearch(name, platform);
+                      setUsernameInput(p.username);
+                      handleSearch(p.username, platform);
                     }}
                     disabled={isPending}
-                    className={`px-3.5 py-1.5 rounded-full text-xs font-medium ${
+                    className={`px-3 py-1.5 rounded-xl text-xs font-medium ${
                       isChessCom
                         ? 'bg-[#211f1c] hover:bg-[#262421] text-[#c3c2c1] border-[#302e2b]'
                         : 'bg-[#24221f] hover:bg-[#292723] text-[#bababa] border-[#33312c]'
-                    } hover:text-white border transition-all cursor-pointer touch-manipulation`}
+                    } hover:text-white border transition-all cursor-pointer touch-manipulation flex items-center gap-1.5`}
                   >
-                    {name}
+                    {p.title && (
+                      <span className="text-[9px] font-bold px-1 py-0.2 bg-amber-400/15 text-amber-300 border border-amber-400/30 rounded">
+                        {p.title}
+                      </span>
+                    )}
+                    <span>{p.displayName || p.username}</span>
                   </button>
                 ))}
               </div>
@@ -1236,59 +1204,83 @@ export function ChessDashboard({
             </div>
           )}
 
+          {/* Sample Mode Notice */}
+          {sampleProfile && (
+            <div className="max-w-6xl mx-auto w-full px-4">
+              <div className="pixel-card bg-amber-950/40 border-2 border-amber-500/50 p-3.5 sm:p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3 text-amber-200 shadow-md">
+                <div className="flex items-center gap-2.5 text-xs sm:text-sm font-medium">
+                  <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
+                  <span>
+                    Режим демонстрации: <strong>Гарри Каспаров — Веселин Топалов (Вейк-ан-Зее, 1999)</strong>
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSampleProfile(null);
+                    setSelectedGameId(null);
+                  }}
+                  className="pixel-btn px-3 py-1.5 bg-[#1c1a17] hover:bg-[#262421] text-zinc-300 hover:text-white text-xs rounded-xl border border-[#3d372e] cursor-pointer transition-all"
+                >
+                  ✕ Закрыть пример
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Results View */}
-          {profile && (
+          {activeProfile && (
             <div className="flex flex-col gap-10 max-w-6xl mx-auto w-full">
               {/* Profile Overview Card */}
               <section className={`${isChessCom ? 'bg-[#211f1c] border-[#302e2b]' : 'bg-[#24221f] border-[#33312c]'} border rounded-3xl p-6 sm:p-8 shadow-sm`}>
                 {/* Header row */}
                 <div className={`flex flex-col md:flex-row md:items-center justify-between gap-6 pb-6 border-b ${isChessCom ? 'border-[#302e2b]' : 'border-[#33312c]'}`}>
                   <div className="flex items-center gap-5">
-                    {profile.avatarUrl ? (
+                    {activeProfile.avatarUrl ? (
                       <img
-                        src={profile.avatarUrl}
-                        alt={profile.username}
+                        src={activeProfile.avatarUrl}
+                        alt={activeProfile.username}
                         className={`w-16 h-16 rounded-2xl object-cover border ${isChessCom ? 'border-[#302e2b] bg-[#191815]' : 'border-[#33312c] bg-[#1c1a17]'} shrink-0`}
                       />
                     ) : (
                       <div className={`w-16 h-16 rounded-2xl ${isChessCom ? 'bg-[#262421] border-[#302e2b] text-[#81b64c]' : 'bg-[#292723] border-[#33312c] text-[#3692e7]'} border flex items-center justify-center font-black text-2xl shrink-0`}>
-                        {profile.title ? profile.title : <User className="w-8 h-8" />}
+                        {activeProfile.title ? activeProfile.title : <User className="w-8 h-8" />}
                       </div>
                     )}
                     <div>
                       <div className="flex items-center gap-2.5 flex-wrap">
                         <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-                          {profile.name || profile.username}
+                          {activeProfile.name || activeProfile.username}
                         </h2>
-                        {profile.name && (
+                        {activeProfile.name && (
                           <span className={`text-sm ${isChessCom ? 'text-[#8b8987]' : 'text-[#7e7b76]'} font-mono`}>
-                            (@{profile.username})
+                            (@{activeProfile.username})
                           </span>
                         )}
-                        {profile.title && (
+                        {activeProfile.title && (
                           <span className="px-2.5 py-0.5 text-xs font-black rounded bg-amber-400 text-zinc-950 uppercase tracking-wider shadow-sm">
-                            {profile.title}
+                            {activeProfile.title}
                           </span>
                         )}
                         {/* Platform Badge */}
                         <span
                           className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-0.5 rounded-full border font-semibold ${
-                            profile.platform === 'chesscom'
+                            activeProfile.platform === 'chesscom'
                               ? 'border-[#81b64c]/40 bg-[#81b64c]/15 text-[#81b64c]'
                               : 'border-[#3692e7]/40 bg-[#3692e7]/15 text-[#3692e7]'
                           }`}
                         >
                           <span
                             className={`w-1.5 h-1.5 rounded-full ${
-                              profile.platform === 'chesscom' ? 'bg-[#81b64c]' : 'bg-[#3692e7]'
+                              activeProfile.platform === 'chesscom' ? 'bg-[#81b64c]' : 'bg-[#3692e7]'
                             }`}
                           />
-                          {profile.platform === 'chesscom' ? 'Chess.com' : 'Lichess'}
+                          {activeProfile.platform === 'chesscom' ? 'Chess.com' : 'Lichess'}
                         </span>
-                        {profile.online !== undefined && (
+                        {activeProfile.online !== undefined && (
                           <span
                             className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-0.5 rounded-full border ${
-                              profile.online
+                              activeProfile.online
                                 ? isChessCom
                                   ? 'border-[#81b64c]/40 bg-[#81b64c]/15 text-[#81b64c]'
                                   : 'border-[#3692e7]/40 bg-[#3692e7]/15 text-[#3692e7]'
@@ -1297,23 +1289,42 @@ export function ChessDashboard({
                           >
                             <span
                               className={`w-1.5 h-1.5 rounded-full ${
-                                profile.online
+                                activeProfile.online
                                   ? isChessCom ? 'bg-[#81b64c] animate-pulse' : 'bg-[#3692e7] animate-pulse'
                                   : 'bg-zinc-500'
                               }`}
                             />
-                            {profile.online ? 'В сети' : 'Офлайн'}
+                            {activeProfile.online ? 'В сети' : 'Офлайн'}
                           </span>
                         )}
+                        {/* 8-bit Cheese Rank */}
+                        {(() => {
+                          const topRating = Math.max(
+                            activeProfile.ratings.blitz ?? 0,
+                            activeProfile.ratings.rapid ?? 0,
+                            activeProfile.ratings.classical ?? 0,
+                            activeProfile.ratings.bullet ?? 0,
+                          );
+                          const rank = getCheeseRank(topRating > 0 ? topRating : 1200);
+                          return (
+                            <span
+                              className={`inline-flex items-center gap-1 text-[11px] px-2.5 py-0.5 rounded-full border ${rank.badgeBorder} ${rank.badgeBg} ${rank.badgeText} font-semibold`}
+                              title={`Сырный статус: ${rank.cheeseType} — ${rank.description}`}
+                            >
+                              <span>🧀</span>
+                              <span>{rank.title}</span>
+                            </span>
+                          );
+                        })()}
                       </div>
-                      {profile.profileUrl && (
+                      {activeProfile.profileUrl && (
                         <a
-                          href={profile.profileUrl}
+                          href={activeProfile.profileUrl}
                           target="_blank"
                           rel="noopener noreferrer"
                           className={`inline-flex items-center gap-1 text-xs ${isChessCom ? 'text-[#8b8987] hover:text-[#81b64c]' : 'text-[#7e7b76] hover:text-[#3692e7]'} transition-colors mt-1.5 font-mono`}
                         >
-                          <span className="truncate max-w-[280px]">{profile.profileUrl}</span>
+                          <span className="truncate max-w-[280px]">{activeProfile.profileUrl}</span>
                           <ExternalLink className="w-3 h-3 shrink-0" />
                         </a>
                       )}
@@ -1351,7 +1362,7 @@ export function ChessDashboard({
                       <span className="text-[11px] text-zinc-500 font-mono">Blitz</span>
                     </div>
                     <div className="text-3xl font-black text-white tracking-tight">
-                      {profile.ratings.blitz ?? '—'}
+                      {activeProfile.ratings.blitz ?? '—'}
                     </div>
                     <div className={`text-[11px] ${isChessCom ? 'text-[#8b8987]' : 'text-[#7e7b76]'} mt-1`}>Рейтинг Blitz</div>
                   </div>
@@ -1366,7 +1377,7 @@ export function ChessDashboard({
                       <span className="text-[11px] text-zinc-500 font-mono">Rapid</span>
                     </div>
                     <div className="text-3xl font-black text-white tracking-tight">
-                      {profile.ratings.rapid ?? '—'}
+                      {activeProfile.ratings.rapid ?? '—'}
                     </div>
                     <div className={`text-[11px] ${isChessCom ? 'text-[#8b8987]' : 'text-[#7e7b76]'} mt-1`}>Рейтинг Rapid</div>
                   </div>
@@ -1381,7 +1392,7 @@ export function ChessDashboard({
                       <span className="text-[11px] text-zinc-500 font-mono">Bullet</span>
                     </div>
                     <div className="text-3xl font-black text-white tracking-tight">
-                      {profile.ratings.bullet ?? '—'}
+                      {activeProfile.ratings.bullet ?? '—'}
                     </div>
                     <div className={`text-[11px] ${isChessCom ? 'text-[#8b8987]' : 'text-[#7e7b76]'} mt-1`}>Рейтинг Bullet</div>
                   </div>
@@ -1391,17 +1402,17 @@ export function ChessDashboard({
                     <div className="flex items-center justify-between text-zinc-400 text-xs mb-2">
                       <span className="flex items-center gap-1.5 font-semibold text-zinc-300">
                         <Trophy className="w-4 h-4 text-indigo-400 group-hover:scale-110 transition-transform" />
-                        {profile.platform === 'chesscom' ? 'Заочные' : 'Классика'}
+                        {activeProfile.platform === 'chesscom' ? 'Заочные' : 'Классика'}
                       </span>
                       <span className="text-[11px] text-zinc-500 font-mono">
-                        {profile.platform === 'chesscom' ? 'Daily' : 'Classical'}
+                        {activeProfile.platform === 'chesscom' ? 'Daily' : 'Classical'}
                       </span>
                     </div>
                     <div className="text-3xl font-black text-white tracking-tight">
-                      {profile.ratings.classical ?? '—'}
+                      {activeProfile.ratings.classical ?? '—'}
                     </div>
                     <div className={`text-[11px] ${isChessCom ? 'text-[#8b8987]' : 'text-[#7e7b76]'} mt-1`}>
-                      {profile.platform === 'chesscom' ? 'Рейтинг Daily' : 'Рейтинг Classical'}
+                      {activeProfile.platform === 'chesscom' ? 'Рейтинг Daily' : 'Рейтинг Classical'}
                     </div>
                   </div>
                 </div>
@@ -1466,7 +1477,7 @@ export function ChessDashboard({
                               className={`${isChessCom ? 'text-[#81b64c] hover:underline' : 'text-[#3692e7] hover:underline'} flex items-center gap-1 transition-colors font-medium touch-manipulation`}
                             >
                               <span>
-                                {profile.platform === 'chesscom'
+                                {activeProfile.platform === 'chesscom'
                                   ? 'Смотреть на Chess.com'
                                   : 'Смотреть на Lichess'}
                               </span>
@@ -1478,8 +1489,8 @@ export function ChessDashboard({
                         <ChessViewer
                           pgn={selectedGame.pgn}
                           moves={selectedGame.moves}
-                          whitePlayer={selectedGame.white ? profile.username : selectedGame.opponent}
-                          blackPlayer={selectedGame.white ? selectedGame.opponent : profile.username}
+                          whitePlayer={selectedGame.white ? activeProfile.username : selectedGame.opponent}
+                          blackPlayer={selectedGame.white ? selectedGame.opponent : activeProfile.username}
                           whiteRating={selectedGame.white ? undefined : selectedGame.opponentRating}
                           blackRating={selectedGame.white ? selectedGame.opponentRating : undefined}
                           initialOrientation={selectedOrientation}
@@ -1556,7 +1567,7 @@ export function ChessDashboard({
                             key={selectedGame.id}
                             pgn={selectedGame.pgn}
                             playerColor={selectedOrientation}
-                            username={profile.username}
+                            username={activeProfile.username}
                             onSelectMovePly={handleSelectMovePly}
                             onRetryMove={handleRetryMove}
                             onAskCoach={handleAskCoach}
@@ -1688,16 +1699,55 @@ export function ChessDashboard({
             </div>
           )}
 
-          {/* Initial Empty State */}
-          {!profile && !error && (
-            <div className="max-w-md mx-auto text-center py-12 px-4">
-              <div className={`w-16 h-16 rounded-3xl ${isChessCom ? 'bg-[#211f1c] border-[#302e2b] text-[#81b64c]' : 'bg-[#24221f] border-[#33312c] text-[#3692e7]'} border flex items-center justify-center mx-auto mb-4 shadow-sm`}>
-                <Trophy className="w-8 h-8" />
+          {/* Initial Empty State & Guide */}
+          {!activeProfile && !error && (
+            <div className="w-full flex flex-col items-center">
+              <div className="max-w-xl mx-auto text-center py-6 px-4 w-full">
+                <div className="pixel-card bg-[#1c1a17] border-2 border-amber-500/30 p-6 sm:p-8 rounded-3xl flex flex-col items-center gap-4 shadow-[6px_6px_0px_0px_#0c0b09]">
+                  {/* 8-bit Pixel Illustration */}
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-[#26231f] border-2 border-[#3d372e] flex items-center justify-center shadow-inner">
+                    <PixelCheeseIcon className="w-10 h-10 sm:w-12 sm:h-12" />
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <h3 className="font-pixel text-sm sm:text-base text-amber-400">
+                      ГОТОВ К АНАЛИЗУ
+                    </h3>
+                    <p className="text-xs sm:text-sm text-zinc-400 leading-relaxed max-w-md">
+                      Всего 3 простых шага для глубокого разбора твоих шахматных партий на движке Stockfish:
+                    </p>
+                  </div>
+
+                  {/* 3 Steps in pixel style */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 w-full text-left my-1">
+                    <div className="bg-[#141310] border border-[#343029] p-3 rounded-xl flex flex-col gap-1">
+                      <span className="font-pixel text-[9px] text-amber-400">1. ПЛАТФОРМА</span>
+                      <span className="text-xs text-zinc-300">Lichess или Chess.com</span>
+                    </div>
+                    <div className="bg-[#141310] border border-[#343029] p-3 rounded-xl flex flex-col gap-1">
+                      <span className="font-pixel text-[9px] text-amber-400">2. НИКНЕЙМ</span>
+                      <span className="text-xs text-zinc-300">Введи ник или кликни топ</span>
+                    </div>
+                    <div className="bg-[#141310] border border-[#343029] p-3 rounded-xl flex flex-col gap-1">
+                      <span className="font-pixel text-[9px] text-amber-400">3. РАЗБОР</span>
+                      <span className="text-xs text-zinc-300">Точность, зевки, советы</span>
+                    </div>
+                  </div>
+
+                  {/* Quick Example Button */}
+                  <button
+                    type="button"
+                    onClick={handleLoadSample}
+                    className="pixel-btn mt-2 bg-[#26231f] hover:bg-[#302c27] text-amber-300 border-2 border-amber-500/40 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 cursor-pointer transition-all active:scale-95"
+                  >
+                    <Sparkles className="w-4 h-4 text-amber-400" />
+                    <span>Открыть готовый разбор без ввода ника</span>
+                  </button>
+                </div>
               </div>
-              <h4 className="text-white font-bold text-lg mb-1.5">Готов к анализу</h4>
-              <p className={`text-xs sm:text-sm leading-relaxed ${isChessCom ? 'text-[#c3c2c1]' : 'text-[#bababa]'}`}>
-                Выбери платформу (Lichess или Chess.com), введи никнейм или нажми на одного из гроссмейстеров выше, чтобы мгновенно загрузить статистику и разобрать партии.
-              </p>
+
+              {/* Static How it works and FAQ */}
+              <HowItWorksAndFaq />
             </div>
           )}
         </div>
@@ -1763,7 +1813,7 @@ export function ChessDashboard({
               <div>
                 <h1 className="text-2xl font-black text-white">Доска интерактивного анализа</h1>
                 <p className="text-xs text-zinc-500">
-                  Играйте ходы на доске, получайте шкалу перевеса и оценку вариантов Stockfish 19 Lite
+                  Играйте ходы на доске, получайте шкалу перевеса и оценку вариантов Stockfish
                 </p>
               </div>
             </div>
@@ -1921,15 +1971,46 @@ export function ChessDashboard({
         )}
 
         {/* Footer */}
-        <footer className={`border-t ${isChessCom ? 'border-[#302e2b] bg-[#161512] text-[#8b8987]' : 'border-[#33312c] bg-[#161512] text-[#7e7b76]'} py-8 text-center text-xs transition-colors mt-auto`}>
-          <div className="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
-              <Logo size="sm" />
-              <span className="text-zinc-500">•</span>
-              <span>Анализ шахматных партий • Stockfish 19 Lite</span>
+        <footer className={`border-t ${isChessCom ? 'border-[#302e2b] bg-[#161512] text-[#8b8987]' : 'border-[#33312c] bg-[#161512] text-[#7e7b76]'} py-8 text-xs transition-colors mt-auto`}>
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col gap-6">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-2.5">
+                <Logo size="sm" />
+                <span className="text-zinc-600">•</span>
+                <span className="text-zinc-400">Анализ шахматных партий • Stockfish WASM</span>
+              </div>
+              <div className="flex flex-wrap items-center justify-center gap-4 text-xs font-medium">
+                <Link href="/about" className="hover:text-amber-400 transition-colors">
+                  О проекте
+                </Link>
+                <Link href="/contact" className="hover:text-amber-400 transition-colors">
+                  Контакты
+                </Link>
+                <Link href="/privacy" className="hover:text-amber-400 transition-colors">
+                  Конфиденциальность
+                </Link>
+                <Link href="/terms" className="hover:text-amber-400 transition-colors">
+                  Условия использования
+                </Link>
+              </div>
             </div>
-            <div className="text-zinc-600 text-[11px]">
-              © {new Date().getFullYear()} ChessCheese — все права защищены
+
+            <div className="border-t border-[#302e2b]/50 pt-4 flex flex-col sm:flex-row items-center justify-between gap-2 text-[11px] text-zinc-500 text-center sm:text-left">
+              <div>
+                © {new Date().getFullYear()} ChessCheese. Движок{' '}
+                <a
+                  href="https://github.com/official-stockfish/Stockfish"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-zinc-400 hover:text-amber-400 underline underline-offset-2"
+                >
+                  Stockfish
+                </a>{' '}
+                распространяется по лицензии GNU GPLv3.
+              </div>
+              <div className="text-zinc-600">
+                Данные партий загружаются через открытые API Lichess и Chess.com
+              </div>
             </div>
           </div>
         </footer>
@@ -1940,7 +2021,7 @@ export function ChessDashboard({
         <button
           type="button"
           onClick={() => setActiveTab('analysis')}
-          className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-lg transition-colors cursor-pointer ${
+          className={`flex-1 flex flex-col items-center justify-center min-h-[48px] py-1.5 px-2 rounded-xl transition-colors cursor-pointer touch-manipulation ${
             activeTab === 'analysis'
               ? isChessCom
                 ? 'text-[#81b64c] font-bold'
@@ -1949,7 +2030,7 @@ export function ChessDashboard({
           }`}
         >
           <Swords className="w-4 h-4" />
-          <span>Обзор</span>
+          <span className="mt-0.5">Разбор</span>
         </button>
 
         <button
@@ -1961,7 +2042,7 @@ export function ChessDashboard({
             setIsMobileMenuOpen(true);
             setIsMobileTrainAccordionOpen(true);
           }}
-          className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-lg transition-colors cursor-pointer ${
+          className={`flex-1 flex flex-col items-center justify-center min-h-[48px] py-1.5 px-2 rounded-xl transition-colors cursor-pointer touch-manipulation ${
             isTrainActive
               ? isChessCom
                 ? 'text-[#81b64c] font-bold'
@@ -1970,7 +2051,7 @@ export function ChessDashboard({
           }`}
         >
           <GraduationCap className="w-4 h-4" />
-          <span>Тренировка</span>
+          <span className="mt-0.5">Тренировки</span>
         </button>
 
         <button
@@ -1982,7 +2063,7 @@ export function ChessDashboard({
             setIsMobileMenuOpen(true);
             setIsMobileToolsAccordionOpen(true);
           }}
-          className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-lg transition-colors cursor-pointer ${
+          className={`flex-1 flex flex-col items-center justify-center min-h-[48px] py-1.5 px-2 rounded-xl transition-colors cursor-pointer touch-manipulation ${
             isToolActive
               ? isChessCom
                 ? 'text-[#81b64c] font-bold'

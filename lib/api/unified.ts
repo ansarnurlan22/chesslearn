@@ -194,7 +194,23 @@ async function fetchChessComUnified(username: string): Promise<UnifiedPlayerProf
     throw new PlatformApiError(
       'chesscom',
       404,
-      `Пользователь "${username}" не найден на Chess.com`,
+      `Игрок "${username}" не найден на Chess.com. Проверьте правильность написания ника.`,
+    );
+  }
+
+  if (profileRes.status === 429) {
+    throw new PlatformApiError(
+      'chesscom',
+      429,
+      'Превышен лимит запросов к Chess.com API. Подождите около 30 секунд и повторите попытку.',
+    );
+  }
+
+  if (profileRes.status >= 500) {
+    throw new PlatformApiError(
+      'chesscom',
+      profileRes.status,
+      'Сервера Chess.com временно недоступны. Попробуйте повторить запрос чуть позже.',
     );
   }
 
@@ -202,7 +218,7 @@ async function fetchChessComUnified(username: string): Promise<UnifiedPlayerProf
     throw new PlatformApiError(
       'chesscom',
       profileRes.status,
-      `Ошибка Chess.com API: ${profileRes.statusText}`,
+      `Не удалось загрузить данные с Chess.com (${profileRes.status}): ${profileRes.statusText}`,
     );
   }
 

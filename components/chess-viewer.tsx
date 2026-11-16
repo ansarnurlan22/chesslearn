@@ -27,11 +27,15 @@ import {
   Maximize2,
   Minimize2,
   RotateCcw,
+  Share2,
   Sparkles,
   Star,
+  Volume2,
+  VolumeX,
   X,
   XCircle,
 } from 'lucide-react';
+import { sfx } from '@/lib/sound-effects';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Chessboard } from 'react-chessboard';
 
@@ -126,6 +130,35 @@ export function ChessViewer({
   const [customArrows, setCustomArrows] = useState<BoardArrow[]>([]);
   const [customSquareStyles, setCustomSquareStyles] = useState<Record<string, React.CSSProperties>>({});
 
+  // 8-bit Sound toggle with localStorage persistence
+  const [isMuted, setIsMuted] = useState<boolean>(false);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('chesscheese_muted');
+      if (saved !== null) {
+        const muted = saved === 'true';
+        setIsMuted(muted);
+        sfx.enabled = !muted;
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const toggleSound = () => {
+    setIsMuted((prev) => {
+      const next = !prev;
+      sfx.enabled = !next;
+      try {
+        localStorage.setItem('chesscheese_muted', String(next));
+      } catch {
+        // ignore
+      }
+      return next;
+    });
+  };
+
   const isLarge = externalIsLarge ?? internalIsLarge;
   const handleToggleSize = () => {
     if (onToggleSize) {
@@ -185,6 +218,22 @@ export function ChessViewer({
     goToEnd,
     goToStep,
   } = useChessGame({ pgn, moves });
+
+  // Play retro 8-bit sound effects on move navigation
+  const prevStepRef = useRef(currentStep);
+  useEffect(() => {
+    if (prevStepRef.current !== currentStep) {
+      if (currentStep > 0) {
+        const isCapture = Boolean(moveNotation && moveNotation.includes('x'));
+        if (isCapture) {
+          sfx.playCapture();
+        } else {
+          sfx.playMove();
+        }
+      }
+      prevStepRef.current = currentStep;
+    }
+  }, [currentStep, moveNotation]);
 
   // Extract embedded evaluations from PGN comments if present
   const pgnEvals = useMemo(() => parsePgnEvaluations(pgn || ''), [pgn]);
@@ -380,8 +429,49 @@ export function ChessViewer({
           )}
         </div>
 
-        {/* Action Controls: Size toggle & Flip board */}
-        <div className="flex items-center gap-2">
+        {/* Action Controls: Size toggle, Flip board, Sound toggle & Share */}
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          {/* Sound Toggle Button */}
+          <button
+            type="button"
+            onClick={toggleSound}
+            title={isMuted ? 'Включить 8-bit звуки ходов' : 'Выключить звуки'}
+            aria-label={isMuted ? 'Включить звук' : 'Выключить звук'}
+            className={`text-xs ${
+              isChessCom
+                ? 'text-[#c3c2c1] bg-[#191815] hover:bg-[#262421] border-[#302e2b]'
+                : 'text-[#bababa] bg-[#1c1a17] hover:bg-[#292723] border-[#33312c]'
+            } hover:text-white transition-all flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border cursor-pointer touch-manipulation`}
+          >
+            {isMuted ? (
+              <VolumeX className="w-3.5 h-3.5 text-zinc-500" />
+            ) : (
+              <Volume2 className="w-3.5 h-3.5 text-amber-400" />
+            )}
+            <span className="hidden sm:inline">{isMuted ? 'Без звука' : 'Звук'}</span>
+          </button>
+
+          {/* Share Button */}
+          <button
+            type="button"
+            onClick={() => {
+              if (typeof navigator !== 'undefined' && navigator.clipboard) {
+                navigator.clipboard.writeText(window.location.href);
+                alert('Ссылка на партию скопирована в буфер обмена!');
+              }
+            }}
+            title="Поделиться партией"
+            aria-label="Поделиться партией"
+            className={`text-xs ${
+              isChessCom
+                ? 'text-[#c3c2c1] bg-[#191815] hover:bg-[#262421] border-[#302e2b]'
+                : 'text-[#bababa] bg-[#1c1a17] hover:bg-[#292723] border-[#33312c]'
+            } hover:text-white transition-all flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border cursor-pointer touch-manipulation`}
+          >
+            <Share2 className="w-3.5 h-3.5 text-zinc-400" />
+            <span className="hidden sm:inline">Поделиться</span>
+          </button>
+
           {/* Board Size Toggle Button */}
           <button
             type="button"

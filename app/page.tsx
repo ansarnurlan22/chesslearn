@@ -1,4 +1,5 @@
 import { ChessDashboard } from '@/components/chess-dashboard';
+import { PixelLoader } from '@/components/pixel-loader';
 import type { ChessPlatform, UnifiedPlayerProfile } from '@/lib/api/types';
 import { getUnifiedPlayerProfile, PlatformApiError } from '@/lib/api/unified';
 import { Suspense } from 'react';
@@ -42,14 +43,7 @@ async function DashboardContent({ searchParams }: PageProps) {
 
 export default function Home({ searchParams }: PageProps) {
   return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen bg-[#161512] flex flex-col items-center justify-center py-24 gap-3 text-zinc-400">
-          <div className="w-8 h-8 rounded-full border-2 border-[#81b64c]/30 border-t-[#81b64c] animate-spin" />
-          <span className="text-sm">Загрузка шахматных данных...</span>
-        </div>
-      }
-    >
+    <Suspense fallback={<PixelLoader />}>
       <DashboardContent searchParams={searchParams} />
     </Suspense>
   );

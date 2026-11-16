@@ -26,13 +26,21 @@ export async function fetchUserProfile(username: string): Promise<LichessUserPro
   });
 
   if (response.status === 404) {
-    throw new LichessApiError(404, `Пользователь "${cleanUsername}" не найден на Lichess`);
+    throw new LichessApiError(404, `Игрок "${cleanUsername}" не найден на Lichess. Проверьте правильность написания логина.`);
+  }
+
+  if (response.status === 429) {
+    throw new LichessApiError(429, 'Превышен лимит запросов к API Lichess. Пожалуйста, подождите полминуты перед следующим запросом.');
+  }
+
+  if (response.status >= 500) {
+    throw new LichessApiError(response.status, 'Сервер Lichess временно недоступен или испытывает высокую нагрузку. Попробуйте чуть позже.');
   }
 
   if (!response.ok) {
     throw new LichessApiError(
       response.status,
-      `Ошибка сервиса Lichess (${response.status}): ${response.statusText}`,
+      `Не удалось загрузить профиль с Lichess (${response.status}): ${response.statusText}`,
     );
   }
 
