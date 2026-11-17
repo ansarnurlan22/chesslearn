@@ -7,7 +7,7 @@ import type {
 import { Chess } from 'chess.js';
 import { isOpeningBookMove } from '@/lib/engine/opening-book';
 import { parsePgnEvaluations } from '@/lib/eval-parser';
-import { WIN_DELTA_THRESHOLDS } from '@/lib/analysis/thresholds';
+import { WIN_DELTA_THRESHOLDS, classifyMove } from '@/lib/analysis/thresholds';
 
 export const GLYPH_MAP: Record<MoveClassificationType, string> = {
   brilliant: '!!',
@@ -207,28 +207,28 @@ export function classifyGameMoves(
 
         const winDelta01 = winDelta / 100;
 
-        if (isCheckmate) {
-          type = 'best';
-          comment = 'Победный ход! Неотразимый мат королю соперника.';
+        type = classifyMove({
+          winDelta: winDelta01,
+          cpl,
+          isCheckmate,
+          playerBefore,
+          playerAfter,
+        });
+
+        if (type === 'best') {
+          comment = isCheckmate
+            ? 'Победный ход! Неотразимый мат королю соперника.'
+            : 'Сильнейший ход движка. Точное позиционное решение.';
           betterMove = undefined;
-        } else if (winDelta01 <= WIN_DELTA_THRESHOLDS.best && cpl <= 10) {
-          type = 'best';
-          comment = 'Сильнейший ход движка. Точное позиционное решение.';
-          betterMove = undefined;
-        } else if (winDelta01 <= WIN_DELTA_THRESHOLDS.great) {
-          type = 'great';
+        } else if (type === 'great') {
           comment = `Отличный ход! Потеря составила всего ${cpl} cp.`;
-        } else if (winDelta01 <= WIN_DELTA_THRESHOLDS.good) {
-          type = 'good';
+        } else if (type === 'good') {
           comment = `Хороший, надёжный ход (потеря ${cpl} cp).`;
-        } else if (winDelta01 <= WIN_DELTA_THRESHOLDS.inaccuracy) {
-          type = 'inaccuracy';
+        } else if (type === 'inaccuracy') {
           comment = `Неточность (потеря ${cpl} cp). Позиция немного ухудшилась.`;
-        } else if (winDelta01 <= WIN_DELTA_THRESHOLDS.mistake) {
-          type = 'mistake';
+        } else if (type === 'mistake') {
           comment = `Ощутимая ошибка (потеря ${cpl} cp). Позиция ухудшается.`;
         } else {
-          type = 'blunder';
           comment = `Серьёзный зевок (потеря ${cpl} cp)! Ход приводит к потере преимущества.`;
         }
 

@@ -27,7 +27,7 @@ export const WIN_DELTA_THRESHOLDS = {
 } as const;
 
 /**
- * Классифицирует ход по шкале потери ожидаемого результата (0..1) и правилам движка.
+ * Классифицирует ход по шкале потери ожидаемого результата (0..1), CPL и правилам движка.
  */
 export function classifyMove({
   winDelta,
@@ -35,7 +35,8 @@ export function classifyMove({
   isEngineBest = false,
   isCheckmate = false,
   isSacrifice = false,
-  isFavorableAdvantage = false,
+  playerBefore = 0,
+  playerAfter = 0,
 }: {
   winDelta: number;
   cpl?: number;
@@ -43,18 +44,60 @@ export function classifyMove({
   isCheckmate?: boolean;
   isSacrifice?: boolean;
   isFavorableAdvantage?: boolean;
+  playerBefore?: number;
+  playerAfter?: number;
 }): MoveClassificationType {
+  // 1. Мат королю всегда лучший ход
   if (isCheckmate) {
     return 'best';
   }
 
-  if (isSacrifice && isFavorableAdvantage && winDelta <= WIN_DELTA_THRESHOLDS.great && cpl <= 20) {
+  // 2. Блестящий ход: только реальная жертва материала, при которой оценка не ухудшилась
+  // (cpl <= 20, winDelta <= 0.02) и позиция до хода ещё не была полностью выигранной (< 400 cp)
+  if (
+    isSacrifice &&
+    playerBefore < 400 &&
+    playerAfter >= 100 &&
+    winDelta <= WIN_DELTA_THRESHOLDS.great &&
+    cpl <= 20
+  ) {
     return 'brilliant';
   }
 
-  // Метка "лучший": только если сыгранный ход совпадает с лучшим ходом движка (или ставит мат)
-  if (isCheckmate || isEngineBest) {
+  // 3. В абсолютно выигранном эндшпиле (+2000 cp) обычные победные ходы считаются отличными,
+  // только финальный мат — лучший.
+  if (playerBefore >= 2000 && playerAfter >= 2000) {
+    return 'great';
+  }
+
+  // 4. Ход совпадает с сильнейшей рекомендацией движка
+  if (isEngineBest) {
     return 'best';
+  }
+
+  // 5. Ход сохраняет решающее преимущество (> 400 cp)
+  if (playerBefore >= 400 && playerAfter >= 400) {
+    return 'great';
+  }
+
+  // 6. Защита от залипания шкалы: потеря фигуры / ладьи (cpl >= 250)
+  // даже в безнадёжной позиции классифицируется как ошибка
+  if (cpl >= 250) {
+    return 'mistake';
+  }
+
+  // 7. Пороги потери вероятности победы (winDelta)
+  if (winDelta > WIN_DELTA_THRESHOLDS.mistake) {
+    // В уже проигранной позиции грубый сброс считается ошибкой, а не зевком (по Chess.com)
+    return playerBefore < -300 ? 'mistake' : 'blunder';
+  }
+
+  if (winDelta > WIN_DELTA_THRESHOLDS.inaccuracy) {
+    return 'mistake';
+  }
+
+  if (winDelta > WIN_DELTA_THRESHOLDS.good || (playerBefore > -400 && cpl >= 80)) {
+    return 'inaccuracy';
   }
 
   if (winDelta <= WIN_DELTA_THRESHOLDS.great) {
@@ -65,15 +108,7 @@ export function classifyMove({
     return 'good';
   }
 
-  if (winDelta <= WIN_DELTA_THRESHOLDS.inaccuracy) {
-    return 'inaccuracy';
-  }
-
-  if (winDelta <= WIN_DELTA_THRESHOLDS.mistake) {
-    return 'mistake';
-  }
-
-  return 'blunder';
+  return 'inaccuracy';
 }
 
 /**

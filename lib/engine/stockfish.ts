@@ -187,15 +187,26 @@ export async function fetchLichessCloudEval(fen: string): Promise<EngineEvaluati
 // Queue for sequential Stockfish execution
 let evaluationQueue: Promise<unknown> = Promise.resolve();
 
-export function runStockfishLocal(fen: string, depth = 8): Promise<EngineEvaluation> {
+export function runStockfishLocal(fen: string, depth = 16): Promise<EngineEvaluation> {
   ensureStockfish();
 
   return new Promise((resolve, reject) => {
     let lastInfoLine = '';
+    const targetGlobal = globalThis as unknown as {
+      onmessage?: (event: { data: string }) => void;
+    };
+
     const timeout = setTimeout(() => {
       globalListeners = globalListeners.filter((l) => l !== onLine);
+      if (targetGlobal.onmessage) {
+        try {
+          targetGlobal.onmessage({ data: 'stop' });
+        } catch {
+          // ignore
+        }
+      }
       reject(new Error(`Stockfish timeout at depth ${depth}`));
-    }, 3000);
+    }, 12000);
 
     const onLine: OutputListener = (line: string) => {
       if (typeof line !== 'string') return;
@@ -247,10 +258,6 @@ export function runStockfishLocal(fen: string, depth = 8): Promise<EngineEvaluat
 
     globalListeners.push(onLine);
 
-    const targetGlobal = globalThis as unknown as {
-      onmessage?: (event: { data: string }) => void;
-    };
-
     if (targetGlobal.onmessage) {
       targetGlobal.onmessage({ data: `position fen ${fen}` });
       targetGlobal.onmessage({ data: `go depth ${depth}` });
@@ -270,7 +277,7 @@ export function runStockfishLocal(fen: string, depth = 8): Promise<EngineEvaluat
  */
 export async function evaluatePosition(
   fen: string,
-  depth = 10,
+  depth = 16,
 ): Promise<EngineEvaluation> {
   // 0. Terminal position check: do not call engine if game is already over (checkmate / stalemate / draw)
   try {

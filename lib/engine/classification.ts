@@ -99,29 +99,37 @@ function isMaterialSacrifice(
       ? PIECE_VALUES[move.captured.toLowerCase()] || 0
       : 0;
 
-    // 1. Direct exchange sacrifice: Rook sacrificed for Minor Piece (Rook=5, Minor=3)
-    if (move.piece.toLowerCase() === 'r' && capturedValue === 3) {
-      return true;
-    }
+    // Pawns or kings cannot make sound piece sacrifices
+    if (movedValue < 3) return false;
 
-    // 2. Queen sacrifice: Queen for Rook or Minor piece (Queen=9, Rook=5 / Minor=3)
-    if (move.piece.toLowerCase() === 'q' && capturedValue <= 5 && capturedValue > 0) {
-      return true;
-    }
-
-    // 3. Piece sacrifice for pawn or into empty attacked square
-    if (movedValue >= 3 && capturedValue < movedValue) {
-      const tempChess = new Chess(afterFen);
-      // Opponent's turn: check if opponent has immediate captures on arrival square
-      const legalReplies = tempChess.moves({ verbose: true });
-      for (const reply of legalReplies) {
-        if (reply.to === move.to) {
-          const capturingPieceValue = PIECE_VALUES[reply.piece.toLowerCase()] || 0;
-          if (capturingPieceValue <= movedValue) {
-            return true;
-          }
-        }
+    // Opponent must have an immediate legal capture on the destination square
+    const tempChess = new Chess(afterFen);
+    const legalReplies = tempChess.moves({ verbose: true });
+    let canOpponentCapture = false;
+    for (const reply of legalReplies) {
+      if (reply.to === move.to) {
+        canOpponentCapture = true;
+        break;
       }
+    }
+
+    if (!canOpponentCapture) {
+      return false;
+    }
+
+    // Direct exchange sacrifice (Rook for minor piece/pawn)
+    if (move.piece.toLowerCase() === 'r' && capturedValue <= 3) {
+      return true;
+    }
+
+    // Queen sacrifice for rook or minor piece
+    if (move.piece.toLowerCase() === 'q' && capturedValue <= 5) {
+      return true;
+    }
+
+    // Minor piece sacrifice (Knight or Bishop) into an attacked square
+    if (movedValue >= 3 && capturedValue < movedValue) {
+      return true;
     }
 
     return false;
@@ -142,7 +150,7 @@ export async function classifyGameWithEngine(
   pgn: string,
   options?: { depth?: number },
 ): Promise<EngineClassificationResult> {
-  const depth = options?.depth || 10;
+  const depth = Math.max(16, options?.depth || 16);
   const chess = new Chess();
 
   try {
@@ -183,46 +191,88 @@ export async function classifyGameWithEngine(
   // Cache evaluations by FEN
   const evalCache = new Map<string, EngineEvaluation>();
 
-  // If no embedded evals, pre-evaluate positions with Stockfish / Cloud Eval
-  if (!hasEmbeddedEvals) {
-    for (let i = 0; i < fens.length; i++) {
-      const fen = fens[i];
-      // Skip opening book plies to save time and compute only real novelties/endgames
-      if (i > 0 && i < totalPlies) {
-        const bookCheck = isOpeningBookMove(historySan, i - 1);
-        if (bookCheck.isBook && i < 14) {
-          continue;
-        }
-      }
+  interface ResolvedPos {
+    whiteCp: number;
+    scoreInfo: ScoreInfo;
+    bestmoveSan?: string;
+    pvSan?: string[];
+  }
 
-      // Check terminal position: do NOT call engine for game over positions
+  const resolvedPositions: ResolvedPos[] = [];
+
+  // Evaluate and normalize every position from White's perspective
+  for (let i = 0; i < fens.length; i++) {
+    const fen = fens[i];
+    const turnChar = (fen.split(' ')[1] || 'w') as 'w' | 'b';
+    const isWhiteTurn = turnChar === 'w';
+
+    // 1. Check terminal position: no engine call needed
+    try {
+      const terminalCheck = new Chess(fen);
+      if (terminalCheck.isGameOver()) {
+        const isMate = terminalCheck.isCheckmate();
+        const whiteCp = isMate ? (isWhiteTurn ? -3000 : 3000) : 0;
+        resolvedPositions.push({
+          whiteCp,
+          scoreInfo: { type: isMate ? 'mate' : 'cp', value: isMate ? (isWhiteTurn ? -1 : 1) : 0 },
+          bestmoveSan: '',
+          pvSan: [],
+        });
+        continue;
+      }
+    } catch {
+      // ignore
+    }
+
+    // 2. Embedded evaluations in PGN
+    if (hasEmbeddedEvals && embeddedEvals.has(i)) {
+      const emb = embeddedEvals.get(i)!;
+      let whiteCp = 0;
+      let scoreInfo: ScoreInfo;
+      if (emb.mate !== undefined) {
+        scoreInfo = { type: 'mate', value: emb.mate };
+        whiteCp = emb.mate > 0 ? 3000 - emb.mate * 10 : -3000 - emb.mate * 10;
+      } else {
+        const raw = typeof emb.cp === 'number' ? emb.cp : Math.round(emb.score * 100);
+        scoreInfo = { type: 'cp', value: raw };
+        whiteCp = raw;
+      }
+      resolvedPositions.push({ whiteCp, scoreInfo });
+      continue;
+    }
+
+    // 3. Engine calculation (Cloud / local Stockfish at depth >= 16)
+    let engineRes = evalCache.get(fen);
+    if (!engineRes) {
       try {
-        const terminalCheck = new Chess(fen);
-        if (terminalCheck.isGameOver()) {
-          const sideVal = terminalCheck.isCheckmate() ? -1000 : 0;
-          evalCache.set(fen, {
-            score: { type: 'cp', value: sideVal },
-            bestmove: '',
-            bestmoveSan: '',
-            pv: [],
-            pvSan: [],
-            depth: 0,
-            source: 'heuristic',
-          });
-          continue;
-        }
+        engineRes = await evaluatePosition(fen, depth);
+        evalCache.set(fen, engineRes);
       } catch {
         // ignore
       }
+    }
 
-      if (!evalCache.has(fen)) {
-        try {
-          const res = await evaluatePosition(fen, depth);
-          evalCache.set(fen, res);
-        } catch {
-          // ignore error; handled in loop below
-        }
+    if (engineRes) {
+      let whiteCp = 0;
+      if (engineRes.score.type === 'mate') {
+        const m = engineRes.score.value;
+        const wMate = isWhiteTurn ? m : -m;
+        whiteCp = wMate > 0 ? 3000 - wMate * 10 : -3000 - wMate * 10;
+      } else {
+        const val = engineRes.score.value;
+        whiteCp = isWhiteTurn ? val : -val;
       }
+      resolvedPositions.push({
+        whiteCp,
+        scoreInfo: engineRes.score,
+        bestmoveSan: engineRes.bestmoveSan,
+        pvSan: engineRes.pvSan,
+      });
+    } else {
+      resolvedPositions.push({
+        whiteCp: 20,
+        scoreInfo: { type: 'cp', value: 20 },
+      });
     }
   }
 
@@ -239,9 +289,6 @@ export async function classifyGameWithEngine(
     black: createEmptySummary(),
   };
 
-  const whiteWinDeltas: number[] = [];
-  const blackWinDeltas: number[] = [];
-
   for (let i = 0; i < totalPlies; i++) {
     const mv = history[i];
     const ply = i + 1;
@@ -254,11 +301,9 @@ export async function classifyGameWithEngine(
 
     // Check terminal status after this move
     let isCheckmate = false;
-    let isStalemate = false;
     try {
       const afterChess = new Chess(fenAfter);
       isCheckmate = afterChess.isCheckmate() || mv.san.includes('#');
-      isStalemate = afterChess.isDraw() && !isCheckmate;
     } catch {
       isCheckmate = mv.san.includes('#');
     }
@@ -287,147 +332,43 @@ export async function classifyGameWithEngine(
       moves.push(moveAnalysis);
       if (color === 'white') {
         stats.white.book++;
-        whiteWinDeltas.push(0);
       } else {
         stats.black.book++;
-        blackWinDeltas.push(0);
       }
       continue;
     }
 
-    // 2. Resolve before/after evaluations (clamped to [-1000, 1000])
-    let evalBeforeCp = 20; // default +0.2 pawns for White at start
-    let evalAfterCp = 20;
-    let evalBeforeScore: ScoreInfo = { type: 'cp', value: 20 };
-    let evalAfterScore: ScoreInfo = { type: 'cp', value: 20 };
-    let engineBestmoveSan: string | undefined = undefined;
-    let enginePvSan: string[] | undefined = undefined;
+    // 2. Continuous position evaluations (position after move is reused as before for next move)
+    const posBefore = resolvedPositions[i];
+    const posAfter = resolvedPositions[i + 1];
 
-    // A) If embedded evals present in PGN
-    if (hasEmbeddedEvals) {
-      const posBefore = i === 0 ? null : embeddedEvals.get(i);
-      const posAfter = embeddedEvals.get(ply);
+    const playerBefore = color === 'white' ? posBefore.whiteCp : -posBefore.whiteCp;
+    const playerAfter = color === 'white' ? posAfter.whiteCp : -posAfter.whiteCp;
 
-      if (posBefore) {
-        if (posBefore.mate !== undefined) {
-          evalBeforeScore = { type: 'mate', value: posBefore.mate };
-          evalBeforeCp = posBefore.mate > 0 ? 1000 : -1000;
-        } else {
-          const rawCp = typeof posBefore.cp === 'number' ? posBefore.cp : Math.round(posBefore.score * 100);
-          evalBeforeCp = Math.max(-1000, Math.min(1000, rawCp));
-          evalBeforeScore = { type: 'cp', value: evalBeforeCp };
-        }
-      } else {
-        evalBeforeCp = 20;
-        evalBeforeScore = { type: 'cp', value: 20 };
-      }
+    const isPlayerBestMove = isCheckmate || (Boolean(posBefore.bestmoveSan) && (
+      posBefore.bestmoveSan === mv.san || (mv.promotion && posBefore.bestmoveSan?.startsWith(mv.from + mv.to))
+    ));
 
-      if (isCheckmate) {
-        evalAfterCp = color === 'white' ? 1000 : -1000;
-        evalAfterScore = { type: 'mate', value: color === 'white' ? 1 : -1 };
-      } else if (isStalemate) {
-        evalAfterCp = 0;
-        evalAfterScore = { type: 'cp', value: 0 };
-      } else if (posAfter) {
-        if (posAfter.mate !== undefined) {
-          evalAfterScore = { type: 'mate', value: posAfter.mate };
-          evalAfterCp = posAfter.mate > 0 ? 1000 : -1000;
-        } else {
-          const rawCp = typeof posAfter.cp === 'number' ? posAfter.cp : Math.round(posAfter.score * 100);
-          evalAfterCp = Math.max(-1000, Math.min(1000, rawCp));
-          evalAfterScore = { type: 'cp', value: evalAfterCp };
-        }
-      } else {
-        evalAfterCp = evalBeforeCp;
-        evalAfterScore = evalBeforeScore;
-      }
-    } else {
-      // B) Using Stockfish / Cloud Eval cache
-      const cachedBefore = evalCache.get(fenBefore);
-      const cachedAfter = isCheckmate || isStalemate ? null : evalCache.get(fenAfter);
+    const cpl = isPlayerBestMove ? 0 : Math.max(0, playerBefore - playerAfter);
+    const winBefore = centipawnsToWinPercent(playerBefore);
+    const winAfter = isCheckmate ? 100 : centipawnsToWinPercent(playerAfter);
+    const winDelta = isPlayerBestMove ? 0 : Math.max(0, (winBefore - winAfter) / 100);
 
-      if (cachedBefore) {
-        engineBestmoveSan = cachedBefore.bestmoveSan;
-        enginePvSan = cachedBefore.pvSan;
-        if (cachedBefore.score.type === 'mate') {
-          evalBeforeScore = cachedBefore.score;
-          const mate = cachedBefore.score.value;
-          // value is from perspective of side to move
-          const whiteMate = turnChar === 'w' ? mate : -mate;
-          evalBeforeCp = whiteMate > 0 ? 1000 : -1000;
-        } else {
-          const val = cachedBefore.score.value;
-          const cpFromWhite = turnChar === 'w' ? val : -val;
-          evalBeforeCp = Math.max(-1000, Math.min(1000, cpFromWhite));
-          evalBeforeScore = { type: 'cp', value: evalBeforeCp };
-        }
-      }
-
-      if (isCheckmate) {
-        evalAfterCp = color === 'white' ? 1000 : -1000;
-        evalAfterScore = { type: 'mate', value: color === 'white' ? 1 : -1 };
-      } else if (isStalemate) {
-        evalAfterCp = 0;
-        evalAfterScore = { type: 'cp', value: 0 };
-      } else if (cachedAfter) {
-        if (cachedAfter.score.type === 'mate') {
-          evalAfterScore = cachedAfter.score;
-          const mate = cachedAfter.score.value;
-          // after move, side to move is opponent
-          const whiteMate = turnChar === 'w' ? -mate : mate;
-          evalAfterCp = whiteMate > 0 ? 1000 : -1000;
-        } else {
-          const val = cachedAfter.score.value;
-          const cpFromWhite = turnChar === 'w' ? -val : val;
-          evalAfterCp = Math.max(-1000, Math.min(1000, cpFromWhite));
-          evalAfterScore = { type: 'cp', value: evalAfterCp };
-        }
-      }
-    }
-
-    // 3. Perspective normalization (strictly clamped to [-1000, 1000])
-    // Player's perspective: positive means player is winning
-    const playerEvalBefore = Math.max(-1000, Math.min(1000, turnChar === 'w' ? evalBeforeCp : -evalBeforeCp));
-    const playerEvalAfter = Math.max(-1000, Math.min(1000, turnChar === 'w' ? evalAfterCp : -evalAfterCp));
-
-    // Check if player played the engine's #1 move
-    const isPlayerBestMove = isCheckmate || (Boolean(engineBestmoveSan) && engineBestmoveSan === mv.san);
-
-    // 4. Centipawn loss (CPL) and Win% delta
-    let cpl = 0;
-    if (isCheckmate || isPlayerBestMove) {
-      cpl = 0;
-    } else {
-      cpl = Math.max(0, playerEvalBefore - playerEvalAfter);
-    }
-
-    const winBefore = centipawnsToWinPercent(playerEvalBefore);
-    const winAfter = isCheckmate ? 100 : centipawnsToWinPercent(playerEvalAfter);
-    const winDelta = isCheckmate || isPlayerBestMove ? 0 : Math.max(0, winBefore - winAfter);
-
-    if (color === 'white') {
-      whiteWinDeltas.push(winDelta);
-    } else {
-      blackWinDeltas.push(winDelta);
-    }
-
-    // 5. Move Classification based on standard Chess.com / Lichess guidelines
     const isSacrifice = isMaterialSacrifice(fenBefore, mv, fenAfter);
-    const isFavorableAdvantage = playerEvalAfter >= 100 || (evalAfterScore.type === 'mate' && playerEvalAfter > 0);
-    const winDelta01 = winDelta / 100;
 
     const type: MoveClassificationType = classifyMove({
-      winDelta: winDelta01,
+      winDelta,
       cpl,
       isEngineBest: isPlayerBestMove,
       isCheckmate,
       isSacrifice,
-      isFavorableAdvantage,
+      playerBefore,
+      playerAfter,
     });
 
     let betterMove: string | undefined = undefined;
     if (type === 'inaccuracy' || type === 'mistake' || type === 'blunder') {
-      betterMove = engineBestmoveSan;
+      betterMove = posBefore.bestmoveSan;
     }
 
     if (isCheckmate || isPlayerBestMove || type === 'best') {
@@ -435,16 +376,17 @@ export async function classifyGameWithEngine(
     }
 
     const glyph = GLYPH_MAP[type] || '';
+    const scoreValClamped = Math.max(-1000, Math.min(1000, posAfter.whiteCp));
     const scoreStr = formatScore(
-      evalAfterScore.type === 'mate'
-        ? { type: 'mate', value: turnChar === 'w' ? evalAfterScore.value : -evalAfterScore.value }
-        : { type: 'cp', value: evalAfterCp },
+      posAfter.scoreInfo.type === 'mate' || isCheckmate
+        ? { type: 'mate', value: posAfter.whiteCp > 0 ? 1 : -1 }
+        : { type: 'cp', value: scoreValClamped },
       'w',
     );
 
-    const pvStr = enginePvSan && enginePvSan.length > 0
-      ? enginePvSan.join(' ')
-      : engineBestmoveSan || '';
+    const pvStr = posBefore.pvSan && posBefore.pvSan.length > 0
+      ? posBefore.pvSan.join(' ')
+      : posBefore.bestmoveSan || '';
 
     // Generate accurate, natural explanation based on chess engine facts
     let comment = '';
@@ -517,19 +459,31 @@ export async function classifyGameWithEngine(
     }
   }
 
-  // Calculate official Lichess accuracy algorithm:
-  // MoveAccuracy = 103.1668 * exp(-0.04354 * winDelta) - 3.1669
-  const computeAccuracy = (deltas: number[]): number => {
-    if (deltas.length === 0) return 90.0;
-    const sum = deltas.reduce((acc, d) => {
-      const moveAcc = Math.max(0, Math.min(100, 103.1668 * Math.exp(-0.04354 * d) - 3.1669));
+  // Calculate accuracy per player based on standard CAPS2 / Chess.com classification
+  const computeAccuracy = (movesList: MoveAnalysis[]): number => {
+    if (movesList.length === 0) return 90.0;
+    const sum = movesList.reduce((acc, m) => {
+      let moveAcc = 100;
+      if (m.type === 'best' || m.type === 'book' || m.type === 'brilliant') {
+        moveAcc = 100;
+      } else if (m.type === 'great') {
+        moveAcc = 97.0;
+      } else if (m.type === 'good') {
+        moveAcc = 88.0;
+      } else if (m.type === 'inaccuracy') {
+        moveAcc = 65.0;
+      } else if (m.type === 'mistake') {
+        moveAcc = 20.0;
+      } else if (m.type === 'blunder') {
+        moveAcc = 0.0;
+      }
       return acc + moveAcc;
     }, 0);
-    return Math.round((sum / deltas.length) * 10) / 10;
+    return Math.round((sum / movesList.length) * 10) / 10;
   };
 
-  const whiteAccuracy = computeAccuracy(whiteWinDeltas);
-  const blackAccuracy = computeAccuracy(blackWinDeltas);
+  const whiteAccuracy = computeAccuracy(moves.filter((m) => m.color === 'white'));
+  const blackAccuracy = computeAccuracy(moves.filter((m) => m.color === 'black'));
 
   // Select top 4-6 critical moves sorted by interestScore
   criticalCandidates.sort((a, b) => b.interestScore - a.interestScore);
