@@ -50,9 +50,11 @@ const GRANDMASTER_SYSTEM_PROMPT = `Ты — шахматный гроссмей�
 
 // Prioritized list of models supported by the Gemini API
 const CANDIDATE_MODELS = [
-  'gemini-2.0-flash',
-  'gemini-1.5-flash',
-  'gemini-2.5-flash',
+  'gemini-3.8-flash',
+  'gemini-3.5-flash-lite',
+  'gemini-3.1-flash-lite',
+  'gemini-flash-latest',
+  'gemini-flash-lite-latest',
 ];
 
 export async function POST(req: NextRequest) {
@@ -189,6 +191,7 @@ ${pgn ? `${pgn}\n` : ''}`;
           headers: {
             'Content-Type': 'application/json',
           },
+          signal: AbortSignal.timeout(10000),
           body: JSON.stringify({
             systemInstruction: {
               parts: [{ text: systemPrompt }],
