@@ -5,6 +5,7 @@ import {
   classifyGameMoves,
 } from '@/lib/chess-classifier';
 import type { ChessPlatform } from '@/lib/api/types';
+import { analytics } from '@/lib/analytics';
 import type {
   CriticalMove,
   CriticalMoveType,
@@ -182,6 +183,7 @@ export function GameReview({
   const startAnalysis = async () => {
     setIsLoading(true);
     setError(null);
+    analytics.analysisStarted(isChessCom ? 'chesscom' : 'lichess');
 
     try {
       const res = await fetch('/api/analyze', {
@@ -203,6 +205,7 @@ export function GameReview({
       const data: GameReviewData = await res.json();
       setReview(data);
       onReviewLoaded?.(data);
+      analytics.analysisCompleted(isChessCom ? 'chesscom' : 'lichess');
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Не удалось провести анализ партии';
       setError(msg);

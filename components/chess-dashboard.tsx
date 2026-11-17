@@ -29,6 +29,7 @@ import { OpeningTrainer } from '@/components/train/opening-trainer';
 import { TrainHub } from '@/components/train/train-hub';
 import { WoodpeckerTrainer } from '@/components/train/woodpecker-trainer';
 import { useAuth } from '@/hooks/use-auth';
+import { analytics } from '@/lib/analytics';
 import type { ChessPlatform, UnifiedGame, UnifiedPlayerProfile } from '@/lib/api/types';
 import { CLASSIFICATION_META } from '@/lib/chess-classifier';
 import { sfx } from '@/lib/sound-effects';
@@ -344,6 +345,7 @@ export function ChessDashboard({
   const activeProfile = profile ?? sampleProfile;
 
   const handleLoadSample = () => {
+    analytics.exampleOpened();
     setSampleProfile(SAMPLE_PROFILE);
     setPlatform(SAMPLE_PROFILE.platform);
     if (SAMPLE_PROFILE.recentGames.length > 0) {
@@ -457,6 +459,7 @@ export function ChessDashboard({
 
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    analytics.analysisStarted(platform);
     handleSearch(usernameInput, platform);
   };
 

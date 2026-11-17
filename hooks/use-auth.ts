@@ -1,6 +1,7 @@
 'use client';
 
 import { createClient } from '@/lib/supabase/client';
+import { analytics } from '@/lib/analytics';
 import type { User } from '@supabase/supabase-js';
 import { useEffect, useState, useCallback } from 'react';
 
@@ -78,6 +79,18 @@ export function useAuth(): UseAuthReturn {
 
     getInitialSession();
 
+    // Track Google login if redirected from callback
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('auth_login') === 'google') {
+        analytics.loginGoogle();
+        urlParams.delete('auth_login');
+        const query = urlParams.toString();
+        const cleanUrl = window.location.pathname + (query ? `?${query}` : '') + window.location.hash;
+        window.history.replaceState(null, '', cleanUrl);
+      }
+    }
+
     // Listen for auth state changes
     const {
       data: { subscription },
@@ -85,6 +98,9 @@ export function useAuth(): UseAuthReturn {
       if (session?.user) {
         setUser(session.user);
         await fetchProfile(session.user.id);
+        if (event === 'SIGNED_IN' && session.user.app_metadata?.provider === 'google') {
+          analytics.loginGoogle();
+        }
       } else {
         setUser(null);
         setProfile(null);

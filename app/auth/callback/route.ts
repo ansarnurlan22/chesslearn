@@ -41,7 +41,9 @@ export async function GET(request: NextRequest) {
 
     // Safe redirect to next destination (ensure relative path to avoid open redirects)
     const safeNext = next.startsWith('/') ? next : '/';
-    return NextResponse.redirect(new URL(safeNext, origin));
+    const redirectUrl = new URL(safeNext, origin);
+    redirectUrl.searchParams.set('auth_login', 'google');
+    return NextResponse.redirect(redirectUrl);
   }
 
   // 3. Fallback

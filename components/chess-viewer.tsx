@@ -36,6 +36,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import { sfx } from '@/lib/sound-effects';
+import { analytics } from '@/lib/analytics';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Chessboard } from 'react-chessboard';
 
@@ -455,6 +456,7 @@ export function ChessViewer({
           <button
             type="button"
             onClick={() => {
+              analytics.shareCard();
               if (typeof navigator !== 'undefined' && navigator.clipboard) {
                 navigator.clipboard.writeText(window.location.href);
                 alert('Ссылка на партию скопирована в буфер обмена!');

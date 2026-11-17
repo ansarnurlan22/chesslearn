@@ -2,6 +2,7 @@
 
 import { Logo } from '@/components/logo';
 import { createClient } from '@/lib/supabase/client';
+import { analytics } from '@/lib/analytics';
 import {
   Eye,
   EyeOff,
@@ -74,15 +75,19 @@ function AuthPageContent() {
 
   const supabase = createClient();
 
-  // Show error or success from URL params (e.g. from callback redirect)
+  // Show error, success, or auth events from URL params (e.g. from callback redirect)
   useEffect(() => {
     const urlError = searchParams.get('error');
     const urlSuccess = searchParams.get('success');
+    const authLogin = searchParams.get('auth_login');
     if (urlError) {
       setErrors((prev) => ({ ...prev, general: formatAuthError(urlError) }));
     }
     if (urlSuccess) {
       setSuccessMessage('Авторизация успешно завершена!');
+    }
+    if (authLogin === 'google') {
+      analytics.loginGoogle();
     }
   }, [searchParams]);
 
