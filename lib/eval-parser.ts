@@ -44,8 +44,8 @@ export function parsePgnEvaluations(pgn: string): Map<number, PositionEvaluation
           const mateIn = parseInt(rawVal.substring(1), 10);
           const isWhiteWinning = mateIn > 0;
           evalMap.set(ply, {
-            score: isWhiteWinning ? 99 : -99,
-            cp: isWhiteWinning ? 10000 : -10000,
+            score: isWhiteWinning ? 10 : -10,
+            cp: isWhiteWinning ? 1000 : -1000,
             mate: mateIn,
             text: mateIn > 0 ? `+M${Math.abs(mateIn)}` : `-M${Math.abs(mateIn)}`,
             isCheckmate: true,
@@ -74,8 +74,8 @@ export function parsePgnEvaluations(pgn: string): Map<number, PositionEvaluation
           if (rawVal.startsWith('#')) {
             const mateIn = parseInt(rawVal.substring(1), 10);
             evalMap.set(ply, {
-              score: mateIn > 0 ? 99 : -99,
-              cp: mateIn > 0 ? 10000 : -10000,
+              score: mateIn > 0 ? 10 : -10,
+              cp: mateIn > 0 ? 1000 : -1000,
               mate: mateIn,
               text: mateIn > 0 ? `+M${Math.abs(mateIn)}` : `-M${Math.abs(mateIn)}`,
               isCheckmate: true,

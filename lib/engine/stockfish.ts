@@ -272,6 +272,30 @@ export async function evaluatePosition(
   fen: string,
   depth = 10,
 ): Promise<EngineEvaluation> {
+  // 0. Terminal position check: do not call engine if game is already over (checkmate / stalemate / draw)
+  try {
+    const tempChess = new Chess(fen);
+    if (tempChess.isGameOver()) {
+      const isBlackTurn = tempChess.turn() === 'b';
+      let value = 0;
+      if (tempChess.isCheckmate()) {
+        // Side to move is checkmated -> -1000 cp from perspective of side to move
+        value = -1000;
+      }
+      return {
+        score: { type: 'cp', value },
+        bestmove: '',
+        bestmoveSan: '',
+        pv: [],
+        pvSan: [],
+        depth: 0,
+        source: 'heuristic',
+      };
+    }
+  } catch {
+    // ignore
+  }
+
   // 1. Try fast Lichess Cloud Eval first
   const cloudResult = await fetchLichessCloudEval(fen);
   if (cloudResult) {

@@ -6,6 +6,7 @@ import type {
   MoveTypeSummary,
 } from '@/types/review';
 import { GLYPH_MAP } from '@/lib/chess-classifier';
+import { classifyMove } from '@/lib/analysis/thresholds';
 import { isOpeningBookMove } from '@/lib/engine/opening-book';
 import { parsePgnEvaluations, type PositionEvaluation } from '@/lib/eval-parser';
 import {
@@ -57,7 +58,7 @@ function createEmptySummary(): MoveTypeSummary {
  */
 export function centipawnsToWinPercent(cp: number): number {
   // Win% = 50 + 50 * (2 / (1 + exp(-0.00368208 * cp)) - 1)
-  const clampedCp = Math.max(-2000, Math.min(2000, cp));
+  const clampedCp = Math.max(-1000, Math.min(1000, cp));
   const winRate = 50 + 50 * (2 / (1 + Math.exp(-0.00368208 * clampedCp)) - 1);
   return Math.max(0, Math.min(100, winRate));
 }
@@ -73,7 +74,7 @@ export function formatScore(
   const val = isWhite ? evalInfo.value : -evalInfo.value;
 
   if (evalInfo.type === 'mate') {
-    if (Math.abs(val) > 500) {
+    if (Math.abs(val) === 0 || Math.abs(val) >= 1000) {
       return val > 0 ? '#1-0' : '#0-1';
     }
     return val > 0 ? `+M${Math.abs(val)}` : `-M${Math.abs(val)}`;
@@ -194,6 +195,26 @@ export async function classifyGameWithEngine(
         }
       }
 
+      // Check terminal position: do NOT call engine for game over positions
+      try {
+        const terminalCheck = new Chess(fen);
+        if (terminalCheck.isGameOver()) {
+          const sideVal = terminalCheck.isCheckmate() ? -1000 : 0;
+          evalCache.set(fen, {
+            score: { type: 'cp', value: sideVal },
+            bestmove: '',
+            bestmoveSan: '',
+            pv: [],
+            pvSan: [],
+            depth: 0,
+            source: 'heuristic',
+          });
+          continue;
+        }
+      } catch {
+        // ignore
+      }
+
       if (!evalCache.has(fen)) {
         try {
           const res = await evaluatePosition(fen, depth);
@@ -231,6 +252,17 @@ export async function classifyGameWithEngine(
     const fenBefore = fens[i];
     const fenAfter = fens[i + 1];
 
+    // Check terminal status after this move
+    let isCheckmate = false;
+    let isStalemate = false;
+    try {
+      const afterChess = new Chess(fenAfter);
+      isCheckmate = afterChess.isCheckmate() || mv.san.includes('#');
+      isStalemate = afterChess.isDraw() && !isCheckmate;
+    } catch {
+      isCheckmate = mv.san.includes('#');
+    }
+
     // 1. Check Opening Book
     const bookStatus = isOpeningBookMove(historySan, i);
     if (bookStatus.isBook) {
@@ -263,7 +295,7 @@ export async function classifyGameWithEngine(
       continue;
     }
 
-    // 2. Resolve before/after evaluations
+    // 2. Resolve before/after evaluations (clamped to [-1000, 1000])
     let evalBeforeCp = 20; // default +0.2 pawns for White at start
     let evalAfterCp = 20;
     let evalBeforeScore: ScoreInfo = { type: 'cp', value: 20 };
@@ -279,9 +311,10 @@ export async function classifyGameWithEngine(
       if (posBefore) {
         if (posBefore.mate !== undefined) {
           evalBeforeScore = { type: 'mate', value: posBefore.mate };
-          evalBeforeCp = posBefore.mate > 0 ? 10000 - posBefore.mate * 100 : -10000 - posBefore.mate * 100;
+          evalBeforeCp = posBefore.mate > 0 ? 1000 : -1000;
         } else {
-          evalBeforeCp = typeof posBefore.cp === 'number' ? posBefore.cp : Math.round(posBefore.score * 100);
+          const rawCp = typeof posBefore.cp === 'number' ? posBefore.cp : Math.round(posBefore.score * 100);
+          evalBeforeCp = Math.max(-1000, Math.min(1000, rawCp));
           evalBeforeScore = { type: 'cp', value: evalBeforeCp };
         }
       } else {
@@ -289,12 +322,19 @@ export async function classifyGameWithEngine(
         evalBeforeScore = { type: 'cp', value: 20 };
       }
 
-      if (posAfter) {
+      if (isCheckmate) {
+        evalAfterCp = color === 'white' ? 1000 : -1000;
+        evalAfterScore = { type: 'mate', value: color === 'white' ? 1 : -1 };
+      } else if (isStalemate) {
+        evalAfterCp = 0;
+        evalAfterScore = { type: 'cp', value: 0 };
+      } else if (posAfter) {
         if (posAfter.mate !== undefined) {
           evalAfterScore = { type: 'mate', value: posAfter.mate };
-          evalAfterCp = posAfter.mate > 0 ? 10000 - posAfter.mate * 100 : -10000 - posAfter.mate * 100;
+          evalAfterCp = posAfter.mate > 0 ? 1000 : -1000;
         } else {
-          evalAfterCp = typeof posAfter.cp === 'number' ? posAfter.cp : Math.round(posAfter.score * 100);
+          const rawCp = typeof posAfter.cp === 'number' ? posAfter.cp : Math.round(posAfter.score * 100);
+          evalAfterCp = Math.max(-1000, Math.min(1000, rawCp));
           evalAfterScore = { type: 'cp', value: evalAfterCp };
         }
       } else {
@@ -304,7 +344,7 @@ export async function classifyGameWithEngine(
     } else {
       // B) Using Stockfish / Cloud Eval cache
       const cachedBefore = evalCache.get(fenBefore);
-      const cachedAfter = evalCache.get(fenAfter);
+      const cachedAfter = isCheckmate || isStalemate ? null : evalCache.get(fenAfter);
 
       if (cachedBefore) {
         engineBestmoveSan = cachedBefore.bestmoveSan;
@@ -314,48 +354,56 @@ export async function classifyGameWithEngine(
           const mate = cachedBefore.score.value;
           // value is from perspective of side to move
           const whiteMate = turnChar === 'w' ? mate : -mate;
-          evalBeforeCp = whiteMate > 0 ? 10000 - whiteMate * 100 : -10000 - whiteMate * 100;
+          evalBeforeCp = whiteMate > 0 ? 1000 : -1000;
         } else {
           const val = cachedBefore.score.value;
-          evalBeforeCp = turnChar === 'w' ? val : -val;
+          const cpFromWhite = turnChar === 'w' ? val : -val;
+          evalBeforeCp = Math.max(-1000, Math.min(1000, cpFromWhite));
           evalBeforeScore = { type: 'cp', value: evalBeforeCp };
         }
       }
 
-      if (cachedAfter) {
+      if (isCheckmate) {
+        evalAfterCp = color === 'white' ? 1000 : -1000;
+        evalAfterScore = { type: 'mate', value: color === 'white' ? 1 : -1 };
+      } else if (isStalemate) {
+        evalAfterCp = 0;
+        evalAfterScore = { type: 'cp', value: 0 };
+      } else if (cachedAfter) {
         if (cachedAfter.score.type === 'mate') {
           evalAfterScore = cachedAfter.score;
           const mate = cachedAfter.score.value;
           // after move, side to move is opponent
           const whiteMate = turnChar === 'w' ? -mate : mate;
-          evalAfterCp = whiteMate > 0 ? 10000 - whiteMate * 100 : -10000 - whiteMate * 100;
+          evalAfterCp = whiteMate > 0 ? 1000 : -1000;
         } else {
           const val = cachedAfter.score.value;
-          evalAfterCp = turnChar === 'w' ? -val : val;
+          const cpFromWhite = turnChar === 'w' ? -val : val;
+          evalAfterCp = Math.max(-1000, Math.min(1000, cpFromWhite));
           evalAfterScore = { type: 'cp', value: evalAfterCp };
         }
       }
     }
 
-    // 3. Perspective normalization
+    // 3. Perspective normalization (strictly clamped to [-1000, 1000])
     // Player's perspective: positive means player is winning
-    const playerEvalBefore = turnChar === 'w' ? evalBeforeCp : -evalBeforeCp;
-    const playerEvalAfter = turnChar === 'w' ? evalAfterCp : -evalAfterCp;
+    const playerEvalBefore = Math.max(-1000, Math.min(1000, turnChar === 'w' ? evalBeforeCp : -evalBeforeCp));
+    const playerEvalAfter = Math.max(-1000, Math.min(1000, turnChar === 'w' ? evalAfterCp : -evalAfterCp));
 
     // Check if player played the engine's #1 move
-    const isPlayerBestMove = engineBestmoveSan === mv.san;
+    const isPlayerBestMove = isCheckmate || (Boolean(engineBestmoveSan) && engineBestmoveSan === mv.san);
 
     // 4. Centipawn loss (CPL) and Win% delta
     let cpl = 0;
-    if (isPlayerBestMove) {
+    if (isCheckmate || isPlayerBestMove) {
       cpl = 0;
     } else {
       cpl = Math.max(0, playerEvalBefore - playerEvalAfter);
     }
 
     const winBefore = centipawnsToWinPercent(playerEvalBefore);
-    const winAfter = centipawnsToWinPercent(playerEvalAfter);
-    const winDelta = isPlayerBestMove ? 0 : Math.max(0, winBefore - winAfter);
+    const winAfter = isCheckmate ? 100 : centipawnsToWinPercent(playerEvalAfter);
+    const winDelta = isCheckmate || isPlayerBestMove ? 0 : Math.max(0, winBefore - winAfter);
 
     if (color === 'white') {
       whiteWinDeltas.push(winDelta);
@@ -366,27 +414,24 @@ export async function classifyGameWithEngine(
     // 5. Move Classification based on standard Chess.com / Lichess guidelines
     const isSacrifice = isMaterialSacrifice(fenBefore, mv, fenAfter);
     const isFavorableAdvantage = playerEvalAfter >= 100 || (evalAfterScore.type === 'mate' && playerEvalAfter > 0);
+    const winDelta01 = winDelta / 100;
 
-    let type: MoveClassificationType = 'good';
+    const type: MoveClassificationType = classifyMove({
+      winDelta: winDelta01,
+      cpl,
+      isEngineBest: isPlayerBestMove,
+      isCheckmate,
+      isSacrifice,
+      isFavorableAdvantage,
+    });
+
     let betterMove: string | undefined = undefined;
+    if (type === 'inaccuracy' || type === 'mistake' || type === 'blunder') {
+      betterMove = engineBestmoveSan;
+    }
 
-    if (isSacrifice && isFavorableAdvantage && winDelta <= 2.0 && cpl <= 20) {
-      type = 'brilliant';
-    } else if (isPlayerBestMove || (winDelta <= 1.0 && cpl <= 10)) {
-      type = 'best';
-    } else if (winDelta <= 2.5 && cpl <= 30) {
-      type = 'great';
-    } else if (winDelta <= 5.0 && cpl <= 55) {
-      type = 'good';
-    } else if (winDelta <= 11.0 && cpl <= 110) {
-      type = 'inaccuracy';
-      betterMove = engineBestmoveSan;
-    } else if (winDelta <= 22.0 && cpl <= 230) {
-      type = 'mistake';
-      betterMove = engineBestmoveSan;
-    } else {
-      type = 'blunder';
-      betterMove = engineBestmoveSan;
+    if (isCheckmate || isPlayerBestMove || type === 'best') {
+      betterMove = undefined;
     }
 
     const glyph = GLYPH_MAP[type] || '';
@@ -408,7 +453,11 @@ export async function classifyGameWithEngine(
         comment = `Блестящая жертва материала! Позиция остаётся строго в вашу пользу (${scoreStr}), создавая решающее преимущество.`;
         break;
       case 'best':
-        comment = 'Сильнейший ход по первой линии Stockfish. Максимально точное позиционное решение.';
+        if (isCheckmate) {
+          comment = 'Победный ход! Неотразимый мат королю соперника.';
+        } else {
+          comment = 'Сильнейший ход по первой линии Stockfish. Максимально точное позиционное решение.';
+        }
         break;
       case 'great':
         comment = `Отличный ход! Потеря всего ${cpl} cp. Фигуры сохраняют высокую активность и гармонию.`;
@@ -417,13 +466,19 @@ export async function classifyGameWithEngine(
         comment = `Надёжный ход (потеря ${cpl} cp). Позиция остаётся в пределах равенства и контроля.`;
         break;
       case 'inaccuracy':
-        comment = `Неточность (потеря ${cpl} cp). Сильнее было сыграть ${betterMove || 'иначе'}. Линия Stockfish: ${pvStr || betterMove || 'активное развитие'}.`;
+        comment = betterMove
+          ? `Неточность (потеря ${cpl} cp). Сильнее было сыграть ${betterMove}. Линия Stockfish: ${pvStr || betterMove}.`
+          : `Неточность (потеря ${cpl} cp). Позиция немного ухудшилась.`;
         break;
       case 'mistake':
-        comment = `Ощутимая ошибка (потеря ${cpl} cp). Точнее было ${betterMove || 'иначе'}. Соперник получает возможность навязать контригру.`;
+        comment = betterMove
+          ? `Ощутимая ошибка (потеря ${cpl} cp). Точнее было ${betterMove}. Соперник получает возможность навязать контригру.`
+          : `Ощутимая ошибка (потеря ${cpl} cp). Ход уступает сильнейшему продолжению.`;
         break;
       case 'blunder':
-        comment = `Серьёзный зевок (потеря ${cpl} cp)! Сильнейшим продолжением было ${betterMove || 'иначе'}, тогда как ход в партии ухудшает позицию.`;
+        comment = betterMove
+          ? `Серьёзный зевок (потеря ${cpl} cp)! Сильнейшим продолжением было ${betterMove}, тогда как ход в партии ухудшает позицию.`
+          : `Серьёзный зевок (потеря ${cpl} cp)! Ход приводит к ухудшению позиции.`;
         break;
     }
 
@@ -482,6 +537,10 @@ export async function classifyGameWithEngine(
 
   // If a critical move lacks betterMove / PV (e.g. from embedded PGN), query engine for it
   for (const c of selectedCandidates) {
+    if (c.move.type === 'best' || c.move.san.includes('#')) {
+      c.move.betterMove = undefined;
+      continue;
+    }
     if (!c.move.betterMove) {
       try {
         const cloud = await fetchLichessCloudEval(c.fenBefore);

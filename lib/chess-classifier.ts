@@ -7,6 +7,7 @@ import type {
 import { Chess } from 'chess.js';
 import { isOpeningBookMove } from '@/lib/engine/opening-book';
 import { parsePgnEvaluations } from '@/lib/eval-parser';
+import { WIN_DELTA_THRESHOLDS } from '@/lib/analysis/thresholds';
 
 export const GLYPH_MAP: Record<MoveClassificationType, string> = {
   brilliant: '!!',
@@ -95,7 +96,7 @@ function createEmptySummary(): MoveTypeSummary {
 }
 
 function centipawnsToWinPercent(cp: number): number {
-  const clampedCp = Math.max(-2000, Math.min(2000, cp));
+  const clampedCp = Math.max(-1000, Math.min(1000, cp));
   const winRate = 50 + 50 * (2 / (1 + Math.exp(-0.00368208 * clampedCp)) - 1);
   return Math.max(0, Math.min(100, winRate));
 }
@@ -174,6 +175,7 @@ export function classifyGameMoves(
         cpl = 0;
       } else if (hasEmbedded) {
         // 3. Mathematical classification using embedded evaluations in PGN
+        const isCheckmate = mv.san.includes('#');
         const posBefore = i === 0 ? null : embeddedEvals.get(i);
         const posAfter = embeddedEvals.get(ply);
 
@@ -182,36 +184,47 @@ export function classifyGameMoves(
 
         if (posBefore) {
           beforeCp = posBefore.mate !== undefined
-            ? (posBefore.mate > 0 ? 10000 : -10000)
-            : (typeof posBefore.cp === 'number' ? posBefore.cp : Math.round(posBefore.score * 100));
+            ? (posBefore.mate > 0 ? 1000 : -1000)
+            : Math.max(-1000, Math.min(1000, typeof posBefore.cp === 'number' ? posBefore.cp : Math.round(posBefore.score * 100)));
         }
-        if (posAfter) {
+        if (isCheckmate) {
+          afterCp = color === 'white' ? 1000 : -1000;
+        } else if (posAfter) {
           afterCp = posAfter.mate !== undefined
-            ? (posAfter.mate > 0 ? 10000 : -10000)
-            : (typeof posAfter.cp === 'number' ? posAfter.cp : Math.round(posAfter.score * 100));
+            ? (posAfter.mate > 0 ? 1000 : -1000)
+            : Math.max(-1000, Math.min(1000, typeof posAfter.cp === 'number' ? posAfter.cp : Math.round(posAfter.score * 100)));
+        } else {
+          afterCp = beforeCp;
         }
 
-        const playerBefore = turnChar === 'w' ? beforeCp : -beforeCp;
-        const playerAfter = turnChar === 'w' ? afterCp : -afterCp;
+        const playerBefore = Math.max(-1000, Math.min(1000, turnChar === 'w' ? beforeCp : -beforeCp));
+        const playerAfter = Math.max(-1000, Math.min(1000, turnChar === 'w' ? afterCp : -afterCp));
 
-        cpl = Math.max(0, playerBefore - playerAfter);
+        cpl = isCheckmate ? 0 : Math.max(0, playerBefore - playerAfter);
         const winBefore = centipawnsToWinPercent(playerBefore);
-        const winAfter = centipawnsToWinPercent(playerAfter);
-        const winDelta = Math.max(0, winBefore - winAfter);
+        const winAfter = isCheckmate ? 100 : centipawnsToWinPercent(playerAfter);
+        const winDelta = isCheckmate ? 0 : Math.max(0, winBefore - winAfter);
 
-        if (winDelta <= 1.0 && cpl <= 10) {
+        const winDelta01 = winDelta / 100;
+
+        if (isCheckmate) {
+          type = 'best';
+          comment = 'Победный ход! Неотразимый мат королю соперника.';
+          betterMove = undefined;
+        } else if (winDelta01 <= WIN_DELTA_THRESHOLDS.best && cpl <= 10) {
           type = 'best';
           comment = 'Сильнейший ход движка. Точное позиционное решение.';
-        } else if (winDelta <= 2.5 && cpl <= 30) {
+          betterMove = undefined;
+        } else if (winDelta01 <= WIN_DELTA_THRESHOLDS.great) {
           type = 'great';
           comment = `Отличный ход! Потеря составила всего ${cpl} cp.`;
-        } else if (winDelta <= 5.0 && cpl <= 55) {
+        } else if (winDelta01 <= WIN_DELTA_THRESHOLDS.good) {
           type = 'good';
           comment = `Хороший, надёжный ход (потеря ${cpl} cp).`;
-        } else if (winDelta <= 11.0 && cpl <= 110) {
+        } else if (winDelta01 <= WIN_DELTA_THRESHOLDS.inaccuracy) {
           type = 'inaccuracy';
-          comment = `Неточность (потеря ${cpl} cp). Были более активные продолжения.`;
-        } else if (winDelta <= 22.0 && cpl <= 230) {
+          comment = `Неточность (потеря ${cpl} cp). Позиция немного ухудшилась.`;
+        } else if (winDelta01 <= WIN_DELTA_THRESHOLDS.mistake) {
           type = 'mistake';
           comment = `Ощутимая ошибка (потеря ${cpl} cp). Позиция ухудшается.`;
         } else {
@@ -220,12 +233,14 @@ export function classifyGameMoves(
         }
 
         const pawns = (afterCp / 100).toFixed(1);
-        scoreStr = afterCp > 0 ? `+${pawns}` : `${pawns}`;
+        scoreStr = isCheckmate ? (turnChar === 'w' ? '#1-0' : '#0-1') : (afterCp > 0 ? `+${pawns}` : `${pawns}`);
       } else {
         // 4. Default fallback when no engine analysis is loaded yet
         if (mv.san.includes('#')) {
-          type = 'great';
-          comment = 'Победный удар! Ход завершает партию неотразимым матом.';
+          type = 'best';
+          comment = 'Победный ход! Неотразимый мат королю соперника.';
+          cpl = 0;
+          scoreStr = turnChar === 'w' ? '#1-0' : '#0-1';
         } else {
           type = 'good';
           comment = 'Ход в партии. Запустите глубокий разбор Stockfish для детальной оценки.';
