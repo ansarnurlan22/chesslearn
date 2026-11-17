@@ -16,10 +16,13 @@ export interface UserProfile {
   updated_at: string;
 }
 
-interface UseAuthReturn {
+export interface UseAuthReturn {
   user: User | null;
   profile: UserProfile | null;
   loading: boolean;
+  error: string | null;
+  clearError: () => void;
+  signInWithGoogle: (nextPath?: string) => Promise<{ error?: string }>;
   signOut: () => Promise<void>;
 }
 
@@ -27,19 +30,28 @@ export function useAuth(): UseAuthReturn {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const supabase = createClient();
 
+  const clearError = useCallback(() => {
+    setError(null);
+  }, []);
+
   const fetchProfile = useCallback(
     async (userId: string) => {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
+      try {
+        const { data, error: profileErr } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', userId)
+          .single();
 
-      if (!error && data) {
-        setProfile(data as UserProfile);
+        if (!profileErr && data) {
+          setProfile(data as UserProfile);
+        }
+      } catch {
+        // ignore network error
       }
     },
     [supabase],
@@ -48,15 +60,20 @@ export function useAuth(): UseAuthReturn {
   useEffect(() => {
     // Get initial session
     const getInitialSession = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
 
-      if (session?.user) {
-        setUser(session.user);
-        await fetchProfile(session.user.id);
+        if (session?.user) {
+          setUser(session.user);
+          await fetchProfile(session.user.id);
+        }
+      } catch (err: unknown) {
+        console.error('getInitialSession error:', err);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
 
     getInitialSession();
@@ -80,11 +97,59 @@ export function useAuth(): UseAuthReturn {
     };
   }, [supabase, fetchProfile]);
 
+  const signInWithGoogle = useCallback(
+    async (nextPath = '/') => {
+      setLoading(true);
+      setError(null);
+      try {
+        const origin =
+          typeof window !== 'undefined' && window.location.origin
+            ? window.location.origin
+            : 'https://chesscheese.site';
+        const redirectUrl = `${origin}/auth/callback?next=${encodeURIComponent(nextPath)}`;
+
+        const { error: oauthError } = await supabase.auth.signInWithOAuth({
+          provider: 'google',
+          options: {
+            redirectTo: redirectUrl,
+            queryParams: {
+              access_type: 'offline',
+              prompt: 'select_account',
+            },
+          },
+        });
+
+        if (oauthError) {
+          setError(oauthError.message);
+          setLoading(false);
+          return { error: oauthError.message };
+        }
+
+        return {};
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'Ошибка при входе через Google';
+        setError(msg);
+        setLoading(false);
+        return { error: msg };
+      }
+    },
+    [supabase],
+  );
+
   const signOut = useCallback(async () => {
-    await supabase.auth.signOut();
-    setUser(null);
-    setProfile(null);
+    setLoading(true);
+    setError(null);
+    try {
+      await supabase.auth.signOut();
+    } catch (err: unknown) {
+      console.error('signOut error:', err);
+    } finally {
+      // Clear all user and profile state completely
+      setUser(null);
+      setProfile(null);
+      setLoading(false);
+    }
   }, [supabase]);
 
-  return { user, profile, loading, signOut };
+  return { user, profile, loading, error, clearError, signInWithGoogle, signOut };
 }
