@@ -467,9 +467,9 @@ export async function classifyGameWithEngine(
       if (m.type === 'best' || m.type === 'book' || m.type === 'brilliant') {
         moveAcc = 100;
       } else if (m.type === 'great') {
-        moveAcc = 97.0;
+        moveAcc = 99.0;
       } else if (m.type === 'good') {
-        moveAcc = 88.0;
+        moveAcc = 85.0;
       } else if (m.type === 'inaccuracy') {
         moveAcc = 65.0;
       } else if (m.type === 'mistake') {
