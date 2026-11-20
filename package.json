@@ -14,7 +14,7 @@
     "chess.js": "^1.4.0",
     "clsx": "^2.1.1",
     "lucide-react": "^1.62.0",
-    "next": "16.4.3",
+    "next": "16.4.6",
     "react": "19.3.0",
     "react-chessboard": "^5.12.1",
     "react-dom": "19.3.0",
