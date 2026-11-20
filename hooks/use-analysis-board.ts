@@ -20,7 +20,7 @@ export function useAnalysisBoard(initialFen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPP
   const [bestMove, setBestMove] = useState<string | null>(null);
   const [evalScore, setEvalScore] = useState<string>('0.0');
   const [pvLines, setPvLines] = useState<string[]>([]);
-  const [coachComment, setCoachComment] = useState<string>('Сделайте ход на доске для запуска расчёта Stockfish 19 Lite.');
+  const [coachComment, setCoachComment] = useState<string>('Сделайте ход на доске для запуска расчёта позиции.');
 
   // Fetch engine eval whenever FEN changes
   const evaluatePosition = useCallback(async (currentFen: string) => {

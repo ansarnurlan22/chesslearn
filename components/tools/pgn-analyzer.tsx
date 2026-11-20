@@ -113,12 +113,12 @@ export function PgnAnalyzer() {
         className="pixel-btn text-xs py-3 flex items-center justify-center gap-2 cursor-pointer bg-[#81b64c]/20 border-[#81b64c] text-white hover:bg-[#81b64c]/30 disabled:opacity-40"
       >
         {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
-        <span>{loading ? 'АНАЛИЗИРУЮ ПАРТИЮ...' : 'ЗАПУСТИТЬ АНАЛИЗ [ STOCKFISH 19 ]'}</span>
+        <span>{loading ? 'АНАЛИЗИРУЮ ПАРТИЮ...' : 'ЗАПУСТИТЬ АНАЛИЗ'}</span>
       </button>
 
       {loading && (
         <div className="font-pixel-sm text-[9px] text-center text-amber-400 animate-pulse">
-          STOCKFISH 19 LITE ПРОСЧИТЫВАЕТ КАЖДЫЙ ХОД...
+          ПРОСЧИТЫВАЕМ КАЖДЫЙ ХОД...
         </div>
       )}
 

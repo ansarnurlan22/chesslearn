@@ -368,7 +368,7 @@ export function BoardEditor({ initialFen, onAnalyzePosition }: BoardEditorProps)
               className="pixel-btn flex items-center justify-center gap-2 py-3 px-6 bg-[#81b64c] hover:bg-[#74a643] text-black font-pixel text-xs cursor-pointer"
             >
               <Compass className="w-4 h-4" />
-              <span>АНАЛИЗИРОВАТЬ В STOCKFISH ▶</span>
+              <span>АНАЛИЗИРОВАТЬ ПОЗИЦИЮ ▶</span>
             </button>
           )}
         </div>

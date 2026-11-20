@@ -284,7 +284,7 @@ export function OpeningExplorer({ onAnalyzePosition }: OpeningExplorerProps) {
                 title="Открыть эту позицию в Доске анализа"
               >
                 <Compass className="w-3.5 h-3.5" />
-                <span>АНАЛИЗ В STOCKFISH ▶</span>
+                <span>АНАЛИЗ ПОЗИЦИИ ▶</span>
               </button>
             )}
           </div>

@@ -80,11 +80,11 @@ export function AnalysisBoard({ initialFen, onEditBoard }: AnalysisBoardProps) {
       <div className="pixel-card bg-[#181612] p-4 flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-amber-500/10 border-2 border-amber-500/40 flex items-center justify-center text-amber-400 font-pixel text-xs shadow-[2px_2px_0px_0px_#000] shrink-0">
-            SF
+            CH
           </div>
           <div>
             <div className="text-[10px] font-pixel-sm text-zinc-400 uppercase tracking-wider">
-              ДВИЖОК АНАЛИЗА (STOCKFISH 19 LITE)
+              АНАЛИЗ ПОЗИЦИИ
             </div>
             <p className="text-sm font-semibold text-white mt-0.5">{coachComment}</p>
           </div>
@@ -150,7 +150,7 @@ export function AnalysisBoard({ initialFen, onEditBoard }: AnalysisBoardProps) {
           <div className="pixel-card bg-[#181612] p-5 flex items-center justify-between">
             <div className="flex flex-col gap-1">
               <span className="text-[10px] font-pixel-sm text-zinc-500 uppercase tracking-wider">
-                ЛУЧШИЙ ХОД STOCKFISH
+                ЛУЧШИЙ ХОД
               </span>
               <span className="text-xl font-pixel text-amber-400">
                 {bestMove || '—'}
@@ -178,7 +178,7 @@ export function AnalysisBoard({ initialFen, onEditBoard }: AnalysisBoardProps) {
           <div className="pixel-card bg-[#181612] p-4 flex flex-col gap-3">
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-pixel-sm text-zinc-400 uppercase tracking-wider">
-                ВАРИАНТ ДВИЖКА (PV)
+                ГЛАВНЫЙ ВАРИАНТ (PV)
               </span>
               <button
                 type="button"
@@ -207,7 +207,7 @@ export function AnalysisBoard({ initialFen, onEditBoard }: AnalysisBoardProps) {
               </div>
             ) : (
               <div className="text-xs text-zinc-500 py-2 font-mono">
-                Линия Stockfish рассчитывается...
+                Линия рассчитывается...
               </div>
             )}
           </div>

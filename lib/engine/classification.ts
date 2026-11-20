@@ -398,7 +398,7 @@ export async function classifyGameWithEngine(
         if (isCheckmate) {
           comment = 'Победный ход! Неотразимый мат королю соперника.';
         } else {
-          comment = 'Сильнейший ход по первой линии Stockfish. Максимально точное позиционное решение.';
+          comment = 'Сильнейший ход. Максимально точное позиционное решение.';
         }
         break;
       case 'great':
@@ -409,7 +409,7 @@ export async function classifyGameWithEngine(
         break;
       case 'inaccuracy':
         comment = betterMove
-          ? `Неточность (потеря ${cpl} cp). Сильнее было сыграть ${betterMove}. Линия Stockfish: ${pvStr || betterMove}.`
+          ? `Неточность (потеря ${cpl} cp). Сильнее было сыграть ${betterMove}. Рекомендуемая линия: ${pvStr || betterMove}.`
           : `Неточность (потеря ${cpl} cp). Позиция немного ухудшилась.`;
         break;
       case 'mistake':
@@ -510,11 +510,11 @@ export async function classifyGameWithEngine(
         }
         if (c.move.betterMove) {
           if (c.move.type === 'blunder') {
-            c.move.comment = `Серьёзный зевок! Сильнейшим продолжением было ${c.move.betterMove}. Линия Stockfish 19 Lite: ${c.move.pvLine || c.move.betterMove}.`;
+            c.move.comment = `Серьёзный зевок! Сильнейшим продолжением было ${c.move.betterMove}. Рекомендуемая линия: ${c.move.pvLine || c.move.betterMove}.`;
           } else if (c.move.type === 'mistake') {
-            c.move.comment = `Ощутимая ошибка. Точнее было ${c.move.betterMove}. Линия Stockfish 19 Lite: ${c.move.pvLine || c.move.betterMove}.`;
+            c.move.comment = `Ощутимая ошибка. Точнее было ${c.move.betterMove}. Рекомендуемая линия: ${c.move.pvLine || c.move.betterMove}.`;
           } else if (c.move.type === 'inaccuracy') {
-            c.move.comment = `Неточность. Сильнее было сыграть ${c.move.betterMove}. Линия: ${c.move.pvLine || c.move.betterMove}.`;
+            c.move.comment = `Неточность. Сильнее было сыграть ${c.move.betterMove}. Рекомендуемая линия: ${c.move.pvLine || c.move.betterMove}.`;
           }
         }
       } catch {

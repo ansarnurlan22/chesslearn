@@ -218,7 +218,7 @@ export function classifyGameMoves(
         if (type === 'best') {
           comment = isCheckmate
             ? 'Победный ход! Неотразимый мат королю соперника.'
-            : 'Сильнейший ход движка. Точное позиционное решение.';
+            : 'Сильнейший ход. Точное позиционное решение.';
           betterMove = undefined;
         } else if (type === 'great') {
           comment = `Отличный ход! Потеря составила всего ${cpl} cp.`;
@@ -243,7 +243,7 @@ export function classifyGameMoves(
           scoreStr = turnChar === 'w' ? '#1-0' : '#0-1';
         } else {
           type = 'good';
-          comment = 'Ход в партии. Запустите глубокий разбор Stockfish для детальной оценки.';
+          comment = 'Ход в партии. Запустите глубокий разбор для детальной оценки.';
         }
       }
     }

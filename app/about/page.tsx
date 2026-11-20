@@ -6,7 +6,7 @@ import Link from 'next/link';
 export const metadata: Metadata = {
   title: 'О проекте — ChessCheese',
   description:
-    'Информация о шахматном сервисе ChessCheese, используемом движке Stockfish и интеграции с Lichess и Chess.com.',
+    'Информация о шахматном сервисе ChessCheese, лицензиях и интеграции с Lichess и Chess.com.',
 };
 
 export default function AboutPage() {
@@ -54,7 +54,7 @@ export default function AboutPage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-            <div className="bg-[#141310] border border-[#343029] p-5 rounded-2xl flex flex-col gap-2">
+            <div id="licenses" className="bg-[#141310] border border-[#343029] p-5 rounded-2xl flex flex-col gap-2">
               <div className="w-9 h-9 rounded-xl bg-amber-400/10 border border-amber-400/20 flex items-center justify-center text-amber-400">
                 <Cpu className="w-5 h-5" />
               </div>

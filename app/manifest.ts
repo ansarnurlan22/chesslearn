@@ -4,7 +4,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: 'ChessCheese — Анализ шахматных партий',
     short_name: 'ChessCheese',
-    description: 'Анализ шахматных партий с Lichess и Chess.com на движке Stockfish в ретро 8-bit стиле.',
+    description: 'Анализ шахматных партий с Lichess и Chess.com в ретро 8-bit стиле.',
     start_url: '/',
     display: 'standalone',
     background_color: '#141310',

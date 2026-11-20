@@ -116,7 +116,7 @@ export function FenAnalyzer() {
         className="pixel-btn text-xs py-3 flex items-center justify-center gap-2 cursor-pointer bg-[#81b64c]/20 border-[#81b64c] text-white hover:bg-[#81b64c]/30 disabled:opacity-40"
       >
         {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4 text-amber-400" />}
-        <span>{loading ? 'АНАЛИЗИРУЮ...' : 'АНАЛИЗИРОВАТЬ [ STOCKFISH ]'}</span>
+        <span>{loading ? 'АНАЛИЗИРУЮ...' : 'АНАЛИЗИРОВАТЬ ПОЗИЦИЮ'}</span>
       </button>
 
       {error && (
@@ -131,7 +131,7 @@ export function FenAnalyzer() {
           <div className="font-pixel-sm text-[10px] text-zinc-400 uppercase tracking-wider">РЕЗУЛЬТАТ АНАЛИЗА</div>
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-1">
-              <span className="font-pixel-sm text-[9px] text-zinc-500">STOCKFISH 19 LITE</span>
+              <span className="font-pixel-sm text-[9px] text-zinc-500">ОЦЕНКА ПОЗИЦИИ</span>
               <span className={`font-pixel-sm text-xl ${evalColor}`}>
                 {evalNum !== null && evalNum > 0 ? '+' : ''}{result.eval}
               </span>

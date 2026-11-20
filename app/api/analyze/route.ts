@@ -62,7 +62,7 @@ function buildStockfishSummaryAndTakeaway({
     else if (tp.type === 'brilliant') tpDesc = 'блестящей тактической жертвой';
 
     const betterAlternative = tp.betterMove
-      ? ` В качестве сильнейшей альтернативы Stockfish 19 Lite рекомендовал ход ${tp.betterMove}${tp.pvLine ? ` с линией ${tp.pvLine}` : ''}.`
+      ? ` В качестве сильнейшей альтернативы рекомендовался ход ${tp.betterMove}${tp.pvLine ? ` с линией ${tp.pvLine}` : ''}.`
       : '';
 
     turningPointSentence = ` Главным переломным моментом стал ход ${tpMoveNotation} (${tpColorName}), оказавшийся ${tpDesc} (оценка ${tp.score || '0.0'}).${betterAlternative}`;
@@ -72,7 +72,7 @@ function buildStockfishSummaryAndTakeaway({
   }
 
   // 2. Build complete summary
-  const summary = `Партия ${username} (${playerColor === 'white' ? 'Белые' : 'Чёрные'}) полностью рассчитана движком Stockfish 19 Lite. Точность игры составила ${userAccuracy}% против ${oppAccuracy}% у соперника.${turningPointSentence} В активе ${username}: ${userStats.best + userStats.great} сильнейших ходов Stockfish, ${userStats.good} надёжных решений, ${userStats.inaccuracy} неточностей, ${userStats.mistake} ошибок и ${userStats.blunder} зевков.`;
+  const summary = `Партия ${username} (${playerColor === 'white' ? 'Белые' : 'Чёрные'}) полностью проанализирована. Точность игры составила ${userAccuracy}% против ${oppAccuracy}% у соперника.${turningPointSentence} В активе ${username}: ${userStats.best + userStats.great} сильнейших ходов, ${userStats.good} надёжных решений, ${userStats.inaccuracy} неточностей, ${userStats.mistake} ошибок и ${userStats.blunder} зевков.`;
 
   // 3. Build practical key takeaway based on error profile
   let keyTakeaway = '';
@@ -83,7 +83,7 @@ function buildStockfishSummaryAndTakeaway({
       .map((b) => `${b.moveNumber}${b.color === 'white' ? '.' : '...'}${b.san}`)
       .join(', ');
 
-    keyTakeaway = `Главный практический урок для ${username}: уделите пристальное внимание тактической безопасности на ходах ${blunderMovesStr}. В позиции после хода ${sample.san} Stockfish 19 Lite настаивал на продолжении ${sample.betterMove || 'более надёжном плане'}. Перед каждым ходом обязательно сканируйте вилки, сквозные удары и незащищённые фигуры.`;
+    keyTakeaway = `Главный практический урок для ${username}: уделите пристальное внимание тактической безопасности на ходах ${blunderMovesStr}. В позиции после хода ${sample.san} рекомендовалось продолжение ${sample.betterMove || 'более надёжный план'}. Перед каждым ходом обязательно сканируйте вилки, сквозные удары и незащищённые фигуры.`;
   } else if (userMistakes.length > 0) {
     const sample = userMistakes[0];
     const mistakeMovesStr = userMistakes
@@ -98,9 +98,9 @@ function buildStockfishSummaryAndTakeaway({
       .map((i) => `${i.moveNumber}${i.color === 'white' ? '.' : '...'}${i.san}`)
       .join(', ');
 
-    keyTakeaway = `Отличная дисциплина ходов без грубых тактических провалов! Единственный резерв для роста — устранение микро-неточностей на ходах ${inaccMovesStr}. Развивайте активность ладей по открытым вертикалям, чтобы реализовывать позиционный перевес на уровне первой линии Stockfish 19 Lite.`;
+    keyTakeaway = `Отличная дисциплина ходов без грубых тактических провалов! Единственный резерв для роста — устранение микро-неточностей на ходах ${inaccMovesStr}. Развивайте активность ладей по открытым вертикалям, чтобы реализовывать позиционный перевес и находить сильнейшие продолжения.`;
   } else {
-    keyTakeaway = `Гроссмейстерский уровень точности (${userAccuracy}%)! Ни одного зевка или ошибки за всю партию — эталонное следование первой линии шахматного движка Stockfish 19 Lite.`;
+    keyTakeaway = `Гроссмейстерский уровень точности (${userAccuracy}%)! Ни одного зевка или ошибки за всю партию — эталонная точность игры.`;
   }
 
   return { summary, keyTakeaway };

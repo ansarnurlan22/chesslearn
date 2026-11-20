@@ -249,7 +249,7 @@ export function GameReview({
             <h3 className="font-bold text-base text-white flex items-center gap-2">
               <span>Разбор партии</span>
               <span className={`text-[10px] px-2 py-0.5 rounded-full ${isChessCom ? 'bg-[#81b64c]/15 border-[#81b64c]/30 text-[#81b64c]' : 'bg-[#3692e7]/15 border-[#3692e7]/30 text-[#3692e7]'} border font-mono`}>
-                Stockfish
+                Анализ
               </span>
             </h3>
           </div>
@@ -271,7 +271,7 @@ export function GameReview({
             ) : (
               <>
                 <Sparkles className="w-4 h-4 text-white" />
-                <span>Запустить анализ Stockfish</span>
+                <span>Запустить анализ</span>
               </>
             )}
           </button>
@@ -305,7 +305,7 @@ export function GameReview({
           </div>
           <p className="text-sm font-medium text-zinc-300">Партия готова к анализу</p>
           <p className={`text-xs ${isChessCom ? 'text-[#8b8987]' : 'text-[#7e7b76]'} max-w-sm`}>
-            Нажми «Запустить анализ Stockfish», чтобы движок рассчитал точность, выявил ключевые ходы и составил сводную таблицу.
+            Нажми «Запустить анализ», чтобы рассчитать точность, выявить ключевые ходы и составить сводную таблицу.
           </p>
         </div>
       )}
@@ -318,7 +318,7 @@ export function GameReview({
             <Sparkles className={`w-5 h-5 ${isChessCom ? 'text-[#81b64c]' : 'text-[#3692e7]'} absolute inset-0 m-auto`} />
           </div>
           <div className="text-center">
-            <p className="text-sm font-semibold text-white">Stockfish анализирует партию...</p>
+            <p className="text-sm font-semibold text-white">Анализируем партию...</p>
             <p className={`text-xs ${isChessCom ? 'text-[#8b8987]' : 'text-[#7e7b76]'} mt-1`}>
               Расчёт точности ходов, дебютной теории, потерь CPL и тактических альтернатив
             </p>

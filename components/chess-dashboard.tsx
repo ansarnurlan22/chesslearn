@@ -169,7 +169,7 @@ export const TOOLS_ITEMS: ToolItem[] = [
     label: 'Доска анализа',
     shortDesc: 'Интерактивный анализ ходов, мульти-PV и стрелки',
     icon: Compass,
-    badge: 'Движок',
+    badge: 'Анализ',
     category: 'Анализ',
   },
   {
@@ -1067,7 +1067,7 @@ export function ChessDashboard({
             </h1>
 
             <p className={`text-base sm:text-lg max-w-2xl mb-8 leading-relaxed ${isChessCom ? 'text-[#c3c2c1]' : 'text-[#bababa]'}`}>
-              Глубокий анализ на движке Stockfish: процентная точность, классификация ошибок и интерактивный график перевеса с Lichess и Chess.com без платных подписок и дневных лимитов.
+              Глубокий анализ партий: процентная точность, классификация ошибок и интерактивный график перевеса с Lichess и Chess.com без платных подписок и дневных лимитов.
             </p>
 
             {/* Matte Search & Platform Selector Card */}
@@ -1717,7 +1717,7 @@ export function ChessDashboard({
                       ГОТОВ К АНАЛИЗУ
                     </h3>
                     <p className="text-xs sm:text-sm text-zinc-400 leading-relaxed max-w-md">
-                      Всего 3 простых шага для глубокого разбора твоих шахматных партий на движке Stockfish:
+                      Всего 3 простых шага для глубокого разбора твоих шахматных партий:
                     </p>
                   </div>
 
@@ -1816,7 +1816,7 @@ export function ChessDashboard({
               <div>
                 <h1 className="text-2xl font-black text-white">Доска интерактивного анализа</h1>
                 <p className="text-xs text-zinc-500">
-                  Играйте ходы на доске, получайте шкалу перевеса и оценку вариантов Stockfish
+                  Играйте ходы на доске, получайте шкалу перевеса и оценку вариантов
                 </p>
               </div>
             </div>
@@ -1980,11 +1980,14 @@ export function ChessDashboard({
               <div className="flex items-center gap-2.5">
                 <Logo size="sm" />
                 <span className="text-zinc-600">•</span>
-                <span className="text-zinc-400">Анализ шахматных партий • Stockfish WASM</span>
+                <span className="text-zinc-400">Анализ шахматных партий</span>
               </div>
               <div className="flex flex-wrap items-center justify-center gap-4 text-xs font-medium">
                 <Link href="/about" className="hover:text-amber-400 transition-colors">
                   О проекте
+                </Link>
+                <Link href="/about#licenses" className="hover:text-amber-400 transition-colors">
+                  Лицензии
                 </Link>
                 <Link href="/contact" className="hover:text-amber-400 transition-colors">
                   Контакты

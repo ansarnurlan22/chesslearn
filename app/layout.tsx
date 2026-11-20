@@ -13,9 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'ChessCheese — Бесплатный анализ шахматных партий • Stockfish',
+  title: 'ChessCheese — Бесплатный анализ шахматных партий',
   description:
-    'Анализируй партии с Lichess и Chess.com на движке Stockfish: точность ходов, классификация ошибок и интерактивный разбор без подписок и дневных лимитов.',
+    'Анализируй партии с Lichess и Chess.com: точность ходов, классификация ошибок и интерактивный разбор без подписок и дневных лимитов.',
   metadataBase: new URL('https://chesscheese.site'),
   alternates: {
     canonical: '/',
@@ -23,7 +23,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'ChessCheese — Бесплатный анализ шахматных партий',
     description:
-      'Разбирай партии с Lichess и Chess.com прямо в браузере: движок Stockfish вычисляет точность, классифицирует ошибки и помогает стать сильнее.',
+      'Разбирай партии с Lichess и Chess.com прямо в браузере: вычисление точности, классификация ошибок и интерактивный разбор для роста мастерства.',
     url: 'https://chesscheese.site',
     siteName: 'ChessCheese',
     locale: 'ru_RU',
@@ -33,7 +33,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'ChessCheese — Бесплатный анализ шахматных партий',
     description:
-      'Разбирай партии с Lichess и Chess.com на движке Stockfish без дневных лимитов и подписок.',
+      'Разбирай партии с Lichess и Chess.com без дневных лимитов и подписок.',
   },
   robots: {
     index: true,
